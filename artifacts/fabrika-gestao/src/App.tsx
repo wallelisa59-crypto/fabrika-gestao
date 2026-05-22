@@ -3,7 +3,11 @@ import { useState, useEffect, useCallback, useRef } from "react";
 const CANAIS = ["WhatsApp", "Instagram", "E-mail", "Telefone", "Presencial", "Outro"];
 const STATUS = ["Em negociação", "Em desenvolvimento", "Perdido", "Concluído"];
 const NOTAS = ["😠 Ruim", "😐 Regular", "😊 Bom", "🤩 Ótimo"];
-const TIPOS_CONTRATO = ["Mensalidade", "Projeto pontual", "Avulso", "Pacote"];
+const TIPOS_CONTRATO = ["Por projeto", "Pacote mensal de serviços"];
+const MODELOS_COBRANCA = ["Fee mensal", "Hora técnica / banco de horas", "Performance + fee fixo"];
+const FORMAS_PAGAMENTO = ["Pix", "Boleto", "Cartão de Débito", "Cartão de Crédito"];
+const BANDEIRAS = ["Mastercard", "Visa", "Elo", "American Express"];
+const FORMA_ICONS: Record<string, string> = { "Pix": "⚡", "Boleto": "🧾", "Cartão de Débito": "💳", "Cartão de Crédito": "💳" };
 
 const CANAL_ICONS: Record<string, string> = {
   WhatsApp: "💬", Instagram: "📸", "E-mail": "📧",
@@ -124,6 +128,8 @@ const EMPTY_FORM = {
   tempoConclusaoHoras: "", tempoConclusaoMinutos: "",
   observacao: "", valorContrato: "", tipoContrato: "", prazoEntrega: "",
   tipoPessoa: "fisica" as "fisica" | "juridica", cpf: "", cnpj: "",
+  modeloCobranca: "", formaPagamento: "", bandeira: "", parcelas: "",
+  valorEntrada: "", recorrenciaAutomatica: false as boolean, pagamentoAntecipado: false as boolean,
 };
 
 const Label = ({ children }: { children: React.ReactNode }) => (
@@ -247,6 +253,11 @@ function ClienteHistorico({ clienteKey, clientes, onClose, onEdit }: any) {
                 {a.descricao && <div style={{ fontSize: 13, color: "#9ca3af", marginTop: 6, lineHeight: 1.5 }}>{a.descricao}</div>}
                 <div style={{ display: "flex", gap: 16, marginTop: 8, flexWrap: "wrap" }}>
                   {a.valorContrato && <span style={{ fontSize: 12, color: "#10b981", fontWeight: 600 }}>💰 {formatBRL(a.valorContrato)}{a.tipoContrato ? ` · ${a.tipoContrato}` : ""}</span>}
+                  {a.formaPagamento && <span style={{ fontSize: 12, color: "#06b6d4", fontWeight: 600 }}>{FORMA_ICONS[a.formaPagamento]} {a.formaPagamento}{a.bandeira ? ` · ${a.bandeira}` : ""}{a.parcelas && a.parcelas !== "1x" ? ` · ${a.parcelas}` : ""}</span>}
+                  {a.valorEntrada && <span style={{ fontSize: 12, color: "#f59e0b" }}>Entrada: {formatBRL(a.valorEntrada)}</span>}
+                  {a.modeloCobranca && <span style={{ fontSize: 12, color: "#a78bfa" }}>📋 {a.modeloCobranca}</span>}
+                  {a.recorrenciaAutomatica && <span style={{ fontSize: 12, color: "#818cf8" }}>🔄 Recorrente</span>}
+                  {a.pagamentoAntecipado && <span style={{ fontSize: 12, color: "#10b981" }}>⚡ Antecipado</span>}
                   {a.prazoEntrega && <span style={{ fontSize: 12, color: prazoColor ?? "#9ca3af", fontWeight: 600 }}>📅 {formatDate(a.prazoEntrega)}{dias !== null ? ` (${dias < 0 ? `${Math.abs(dias)}d atrasado` : dias === 0 ? "hoje" : `${dias}d restantes`})` : ""}</span>}
                   {a.tempoResposta && <span style={{ fontSize: 12, color: "#f59e0b" }}>⚡ Resposta em {formatDuration(a.tempoResposta)}</span>}
                 </div>
@@ -368,6 +379,13 @@ export default function App() {
       tipoPessoa: form.tipoPessoa,
       cpf: form.cpf,
       cnpj: form.cnpj,
+      modeloCobranca: form.modeloCobranca,
+      formaPagamento: form.formaPagamento,
+      bandeira: form.bandeira,
+      parcelas: form.parcelas,
+      valorEntrada: form.valorEntrada ? Number(String(form.valorEntrada).replace(",", ".")) : null,
+      recorrenciaAutomatica: form.recorrenciaAutomatica,
+      pagamentoAntecipado: form.pagamentoAntecipado,
     };
     let updated;
     if (editId) {
@@ -396,6 +414,13 @@ export default function App() {
       tipoPessoa: a.tipoPessoa || "fisica",
       cpf: a.cpf || "",
       cnpj: a.cnpj || "",
+      modeloCobranca: a.modeloCobranca || "",
+      formaPagamento: a.formaPagamento || "",
+      bandeira: a.bandeira || "",
+      parcelas: a.parcelas || "",
+      valorEntrada: a.valorEntrada || "",
+      recorrenciaAutomatica: a.recorrenciaAutomatica || false,
+      pagamentoAntecipado: a.pagamentoAntecipado || false,
     });
     setEditId(a.id); setTab("novo");
   };
@@ -710,12 +735,27 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Valor do Contrato */}
+              {/* Contrato & Pagamento */}
               <div style={{ background: "#10b98108", border: "1px solid #10b98120", borderRadius: 12, padding: "16px 18px", marginBottom: 14 }}>
-                <div style={{ fontWeight: 700, color: "#10b981", fontSize: 14, marginBottom: 14 }}>💰 Valor do Contrato</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <div style={{ fontWeight: 700, color: "#10b981", fontSize: 14, marginBottom: 14 }}>💰 Contrato & Pagamento</div>
+
+                {/* Modelo de cobrança */}
+                <div style={{ marginBottom: 14 }}>
+                  <Label>Modelo de Cobrança</Label>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    {MODELOS_COBRANCA.map(m => (
+                      <button key={m} onClick={() => setForm(p => ({ ...p, modeloCobranca: p.modeloCobranca === m ? "" : m }))}
+                        style={{ padding: "7px 13px", borderRadius: 8, border: `1px solid ${form.modeloCobranca === m ? "#10b981" : "#2d3148"}`, background: form.modeloCobranca === m ? "#10b98122" : "#1a1d2e", color: form.modeloCobranca === m ? "#10b981" : "#9ca3af", cursor: "pointer", fontSize: 12, fontWeight: 600, transition: "all 0.15s" }}>
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Valor + Tipo */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
                   <div>
-                    <Label>Valor (R$)</Label>
+                    <Label>Valor Total (R$)</Label>
                     <Field type="number" min="0" value={form.valorContrato} onChange={e => setForm(p => ({ ...p, valorContrato: e.target.value }))} placeholder="Ex: 1500" />
                   </div>
                   <div>
@@ -726,6 +766,72 @@ export default function App() {
                       {TIPOS_CONTRATO.map(t => <option key={t}>{t}</option>)}
                     </select>
                   </div>
+                </div>
+
+                {/* Forma de Pagamento */}
+                <div style={{ marginBottom: 14 }}>
+                  <Label>Forma de Pagamento</Label>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                    {FORMAS_PAGAMENTO.map(f => (
+                      <button key={f} onClick={() => setForm(p => ({ ...p, formaPagamento: p.formaPagamento === f ? "" : f, bandeira: "", parcelas: "" }))}
+                        style={{ padding: "7px 13px", borderRadius: 8, border: `1px solid ${form.formaPagamento === f ? "#10b981" : "#2d3148"}`, background: form.formaPagamento === f ? "#10b98122" : "#1a1d2e", color: form.formaPagamento === f ? "#10b981" : "#9ca3af", cursor: "pointer", fontSize: 12, fontWeight: 600, transition: "all 0.15s" }}>
+                        {FORMA_ICONS[f]} {f}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Bandeira — só para cartão */}
+                {(form.formaPagamento === "Cartão de Débito" || form.formaPagamento === "Cartão de Crédito") && (
+                  <div style={{ marginBottom: 14 }}>
+                    <Label>Bandeira do Cartão</Label>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                      {BANDEIRAS.map(b => (
+                        <button key={b} onClick={() => setForm(p => ({ ...p, bandeira: p.bandeira === b ? "" : b }))}
+                          style={{ padding: "7px 13px", borderRadius: 8, border: `1px solid ${form.bandeira === b ? "#818cf8" : "#2d3148"}`, background: form.bandeira === b ? "#6366f122" : "#1a1d2e", color: form.bandeira === b ? "#818cf8" : "#9ca3af", cursor: "pointer", fontSize: 12, fontWeight: 600, transition: "all 0.15s" }}>
+                          {b}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Parcelas — só para cartão de crédito */}
+                {form.formaPagamento === "Cartão de Crédito" && (
+                  <div style={{ marginBottom: 14 }}>
+                    <Label>Parcelamento</Label>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      {["1x", "2x", "3x", "4x", "5x", "6x"].map(p => (
+                        <button key={p} onClick={() => setForm(f => ({ ...f, parcelas: f.parcelas === p ? "" : p }))}
+                          style={{ flex: 1, padding: "8px 4px", borderRadius: 8, border: `1px solid ${form.parcelas === p ? "#818cf8" : "#2d3148"}`, background: form.parcelas === p ? "#6366f122" : "#1a1d2e", color: form.parcelas === p ? "#818cf8" : "#9ca3af", cursor: "pointer", fontSize: 13, fontWeight: 700, textAlign: "center", transition: "all 0.15s" }}>
+                          {p}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Entrada */}
+                <div style={{ marginBottom: 14 }}>
+                  <Label>Valor de Entrada (R$) — opcional</Label>
+                  <Field type="number" min="0" value={form.valorEntrada} onChange={e => setForm(p => ({ ...p, valorEntrada: e.target.value }))} placeholder="Ex: 500" />
+                  {form.valorEntrada && form.valorContrato && Number(form.valorEntrada) < Number(form.valorContrato) && (
+                    <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>
+                      Restante: <span style={{ color: "#f59e0b", fontWeight: 700 }}>{formatBRL(Number(form.valorContrato) - Number(form.valorEntrada))}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Checkboxes */}
+                <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", userSelect: "none" }}>
+                    <input type="checkbox" checked={form.recorrenciaAutomatica} onChange={e => setForm(p => ({ ...p, recorrenciaAutomatica: e.target.checked }))} style={{ width: 16, height: 16, cursor: "pointer" }} />
+                    <span style={{ fontSize: 13, color: "#9ca3af" }}>🔄 <strong style={{ color: "#e8eaf0" }}>Recorrência automática</strong></span>
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", userSelect: "none" }}>
+                    <input type="checkbox" checked={form.pagamentoAntecipado} onChange={e => setForm(p => ({ ...p, pagamentoAntecipado: e.target.checked }))} style={{ width: 16, height: 16, cursor: "pointer" }} />
+                    <span style={{ fontSize: 13, color: "#9ca3af" }}>⚡ <strong style={{ color: "#e8eaf0" }}>Pagamento antecipado</strong></span>
+                  </label>
                 </div>
               </div>
 
