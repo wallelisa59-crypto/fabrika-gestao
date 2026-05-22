@@ -107,9 +107,9 @@ function calcMetrics(atendimentos: any[]) {
   const avgConclusao = comConclusao.length ? Math.round(comConclusao.reduce((s: number, a: any) => s + a.tempoConclusao, 0) / comConclusao.length) : null;
   const notaMap: any = { "😠 Ruim": 1, "😐 Regular": 2, "😊 Bom": 3, "🤩 Ótimo": 4 };
   const avgFeedback = comFeedback.length ? (comFeedback.reduce((s: number, a: any) => s + notaMap[a.feedbackNota], 0) / comFeedback.length).toFixed(1) : null;
-  const receitaTotal = comContrato.reduce((s: number, a: any) => s + Number(a.valorContrato), 0);
   const recorrentes = atendimentos.filter(a => a.recorrenciaAutomatica && !a.assinaturaCancelada);
   const receitaRecorrente = recorrentes.reduce((s: number, a: any) => s + Number(a.valorContrato || 0), 0);
+  const receitaAvulsa = atendimentos.filter(a => a.valorContrato && !a.recorrenciaAutomatica).reduce((s: number, a: any) => s + Number(a.valorContrato), 0);
   const vencendoHoje = atendimentos.filter(a => { const d = diasRestantes(a.prazoEntrega); return d !== null && d >= 0 && d <= 3 && a.status !== "Concluído"; });
   const atrasados = atendimentos.filter(a => { const d = diasRestantes(a.prazoEntrega); return d !== null && d < 0 && a.status !== "Concluído"; });
   const porCanal: any = {}; CANAIS.forEach(c => { porCanal[c] = atendimentos.filter(a => a.canal === c).length; });
@@ -117,7 +117,7 @@ function calcMetrics(atendimentos: any[]) {
   return {
     total, perdidos: perdidos.length, concluidos: concluidos.length,
     avgResposta, avgConclusao, avgFeedback, feedbackCount: comFeedback.length,
-    receitaTotal, receitaRecorrente, recorrentes,
+    receitaRecorrente, receitaAvulsa, recorrentes,
     vencendoHoje, atrasados,
     taxaPerdido: total > 0 ? ((perdidos.length / total) * 100).toFixed(0) : 0,
     taxaConclusao: total > 0 ? ((concluidos.length / total) * 100).toFixed(0) : 0,
@@ -364,7 +364,8 @@ export default function App() {
     const mes = mesAtual();
     const jaExiste = pagamentosRec.find(p => p.atendimentoId === atendimentoId && p.mes === mes);
     if (jaExiste) { showToast("Pagamento já marcado para este mês!", "err"); return; }
-    const novo = { id: Date.now(), atendimentoId, mes, dataRecebido: new Date().toISOString() };
+    const at = atendimentos.find(a => a.id === atendimentoId);
+    const novo = { id: Date.now(), atendimentoId, mes, valor: at?.valorContrato ? Number(at.valorContrato) : 0, dataRecebido: new Date().toISOString() };
     const updated = [...pagamentosRec, novo];
     setPagamentosRec(updated);
     await savePagRec(updated);
@@ -500,6 +501,9 @@ export default function App() {
   const feedbackRecentes = atendimentosPeriodo.filter(a => a.feedbackNota).sort((x, y) => new Date(y.feedbackEm).getTime() - new Date(x.feedbackEm).getTime()).slice(0, 5);
   const alertasPrazo = [...metrics.atrasados, ...metrics.vencendoHoje].filter((a, i, arr) => arr.findIndex((b: any) => b.id === a.id) === i);
   const respostaClassif = classifyResposta(metrics.avgResposta);
+  const receitaConfirmadaRec = pagamentosRec.reduce((s: number, p: any) => s + Number(p.valor || 0), 0);
+  const receitaTotal = metrics.receitaAvulsa + receitaConfirmadaRec;
+  const assinaturasAtivas = atendimentos.filter(a => a.recorrenciaAutomatica && !a.assinaturaCancelada).length;
 
   const abrirHistorico = (a: any) => {
     const key = chaveCliente(a);
@@ -554,6 +558,7 @@ export default function App() {
             { id: "dashboard", label: "📈 Dashboard" },
             { id: "novo", label: editId ? "✏️ Editar" : "➕ Novo" },
             { id: "lista", label: "📋 Lista" },
+            { id: "assinaturas", label: `🔄 Assinaturas${assinaturasAtivas > 0 ? ` (${assinaturasAtivas})` : ""}` },
             { id: "clientes", label: `👥 Clientes (${clientes.length})` },
             { id: "feedbacks", label: `⭐ Feedbacks${metrics.feedbackCount > 0 ? ` (${metrics.feedbackCount})` : ""}` },
           ].map(t => (
