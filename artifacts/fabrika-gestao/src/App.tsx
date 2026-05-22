@@ -327,6 +327,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [feedbackAtendimento, setFeedbackAtendimento] = useState<any>(null);
   const [clienteHistoricoKey, setClienteHistoricoKey] = useState<string | null>(null);
+  const [periodoDashboard, setPeriodoDashboard] = useState<"hoje" | "7dias" | "mensal" | "todos">("todos");
 
   const showToast = (msg: string, type = "ok") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
@@ -436,8 +437,19 @@ export default function App() {
     return (filtroCanal === "Todos" || a.canal === filtroCanal) && (filtroStatus === "Todos" || a.status === filtroStatus) && buscaOk;
   });
 
-  const metrics = calcMetrics(atendimentos);
-  const feedbackRecentes = atendimentos.filter(a => a.feedbackNota).sort((x, y) => new Date(y.feedbackEm).getTime() - new Date(x.feedbackEm).getTime()).slice(0, 5);
+  const atendimentosPeriodo = atendimentos.filter(a => {
+    if (periodoDashboard === "todos") return true;
+    const criadoEm = new Date(a.criadoEm);
+    const agora = new Date();
+    const inicioHoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+    if (periodoDashboard === "hoje") return criadoEm >= inicioHoje;
+    if (periodoDashboard === "7dias") { const inicio7 = new Date(inicioHoje); inicio7.setDate(inicioHoje.getDate() - 6); return criadoEm >= inicio7; }
+    if (periodoDashboard === "mensal") { const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1); return criadoEm >= inicioMes; }
+    return true;
+  });
+
+  const metrics = calcMetrics(atendimentosPeriodo);
+  const feedbackRecentes = atendimentosPeriodo.filter(a => a.feedbackNota).sort((x, y) => new Date(y.feedbackEm).getTime() - new Date(x.feedbackEm).getTime()).slice(0, 5);
   const alertasPrazo = [...metrics.atrasados, ...metrics.vencendoHoje].filter((a, i, arr) => arr.findIndex((b: any) => b.id === a.id) === i);
   const respostaClassif = classifyResposta(metrics.avgResposta);
 
@@ -510,9 +522,30 @@ export default function App() {
         {/* ── DASHBOARD ── */}
         {tab === "dashboard" && (
           <div>
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ fontSize: 22, fontWeight: 700, color: "#fff" }}>Visão Geral</div>
-              <div style={{ color: "#6b7280", fontSize: 13, marginTop: 2 }}>{atendimentos.length} atendimento(s) · {clientes.length} cliente(s)</div>
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 24 }}>
+              <div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: "#fff" }}>Visão Geral</div>
+                <div style={{ color: "#6b7280", fontSize: 13, marginTop: 2 }}>
+                  {atendimentosPeriodo.length} atendimento(s)
+                  {periodoDashboard !== "todos" && <span style={{ color: "#4b5563" }}> no período</span>}
+                  {periodoDashboard === "todos" && <span> · {clientes.length} cliente(s)</span>}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 6, background: "#0f1117", border: "1px solid #1e2130", borderRadius: 10, padding: 4 }}>
+                {([
+                  { key: "hoje", label: "Hoje" },
+                  { key: "7dias", label: "7 Dias" },
+                  { key: "mensal", label: "Mensal" },
+                  { key: "todos", label: "Todos" },
+                ] as const).map(({ key, label }) => (
+                  <button key={key} onClick={() => setPeriodoDashboard(key)}
+                    style={{ padding: "6px 16px", borderRadius: 7, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, transition: "all 0.15s",
+                      background: periodoDashboard === key ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : "transparent",
+                      color: periodoDashboard === key ? "#fff" : "#6b7280" }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(185px,1fr))", gap: 12, marginBottom: 24 }}>
@@ -614,9 +647,9 @@ export default function App() {
 
             <div style={{ background: "#0f1117", border: "1px solid #1e2130", borderRadius: 14, padding: "20px 24px" }}>
               <div style={{ fontWeight: 700, marginBottom: 16, color: "#fff", fontSize: 15 }}>🕐 Últimos Registros</div>
-              {atendimentos.slice(0, 5).length === 0
-                ? <div style={{ color: "#4b5563", textAlign: "center", padding: "20px 0", fontSize: 14 }}>Nenhum atendimento ainda.</div>
-                : atendimentos.slice(0, 5).map((a: any) => (
+              {atendimentosPeriodo.slice(0, 5).length === 0
+                ? <div style={{ color: "#4b5563", textAlign: "center", padding: "20px 0", fontSize: 14 }}>Nenhum atendimento{periodoDashboard !== "todos" ? " neste período" : " ainda"}.</div>
+                : atendimentosPeriodo.slice(0, 5).map((a: any) => (
                   <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 0", borderBottom: "1px solid #1a1d2e" }}>
                     <div style={{ fontSize: 22 }}>{CANAL_ICONS[a.canal]}</div>
                     <div style={{ flex: 1 }}>
