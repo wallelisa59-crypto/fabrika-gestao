@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Fabrika — Painel de Gestão"
+version = "1.0.0"
+id = "artifacts/fabrika-gestao"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22023
+
+[services.development]
+run = "pnpm --filter @workspace/fabrika-gestao run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/fabrika-gestao", "run", "build" ]
+publicDir = "artifacts/fabrika-gestao/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22023"
+BASE_PATH = "/"
