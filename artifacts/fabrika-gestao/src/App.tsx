@@ -108,6 +108,8 @@ function calcMetrics(atendimentos: any[]) {
   const notaMap: any = { "😠 Ruim": 1, "😐 Regular": 2, "😊 Bom": 3, "🤩 Ótimo": 4 };
   const avgFeedback = comFeedback.length ? (comFeedback.reduce((s: number, a: any) => s + notaMap[a.feedbackNota], 0) / comFeedback.length).toFixed(1) : null;
   const receitaTotal = comContrato.reduce((s: number, a: any) => s + Number(a.valorContrato), 0);
+  const recorrentes = atendimentos.filter(a => a.recorrenciaAutomatica && !a.assinaturaCancelada);
+  const receitaRecorrente = recorrentes.reduce((s: number, a: any) => s + Number(a.valorContrato || 0), 0);
   const vencendoHoje = atendimentos.filter(a => { const d = diasRestantes(a.prazoEntrega); return d !== null && d >= 0 && d <= 3 && a.status !== "Concluído"; });
   const atrasados = atendimentos.filter(a => { const d = diasRestantes(a.prazoEntrega); return d !== null && d < 0 && a.status !== "Concluído"; });
   const porCanal: any = {}; CANAIS.forEach(c => { porCanal[c] = atendimentos.filter(a => a.canal === c).length; });
@@ -115,7 +117,8 @@ function calcMetrics(atendimentos: any[]) {
   return {
     total, perdidos: perdidos.length, concluidos: concluidos.length,
     avgResposta, avgConclusao, avgFeedback, feedbackCount: comFeedback.length,
-    receitaTotal, vencendoHoje, atrasados,
+    receitaTotal, receitaRecorrente, recorrentes,
+    vencendoHoje, atrasados,
     taxaPerdido: total > 0 ? ((perdidos.length / total) * 100).toFixed(0) : 0,
     taxaConclusao: total > 0 ? ((concluidos.length / total) * 100).toFixed(0) : 0,
     porCanal, porStatus,
@@ -328,6 +331,7 @@ export default function App() {
   const [feedbackAtendimento, setFeedbackAtendimento] = useState<any>(null);
   const [clienteHistoricoKey, setClienteHistoricoKey] = useState<string | null>(null);
   const [periodoDashboard, setPeriodoDashboard] = useState<"hoje" | "7dias" | "mensal" | "todos">("todos");
+  const [pagamentosRec, setPagamentosRec] = useState<any[]>([]);
 
   const showToast = (msg: string, type = "ok") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
@@ -336,6 +340,8 @@ export default function App() {
       try {
         const r = await (window as any).storage.get("atendimentos_v4");
         if (r && r.value) setAtendimentos(JSON.parse(r.value));
+        const rp = await (window as any).storage.get("pagamentos_rec_v1");
+        if (rp && rp.value) setPagamentosRec(JSON.parse(rp.value));
       } catch (_) {}
       setLoading(false);
     })();
@@ -344,6 +350,48 @@ export default function App() {
   const saveStorage = useCallback(async (data: any[]) => {
     try { await (window as any).storage.set("atendimentos_v4", JSON.stringify(data)); } catch (_) {}
   }, []);
+
+  const savePagRec = useCallback(async (data: any[]) => {
+    try { await (window as any).storage.set("pagamentos_rec_v1", JSON.stringify(data)); } catch (_) {}
+  }, []);
+
+  const mesAtual = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  };
+
+  const handleMarcarRecebido = async (atendimentoId: number) => {
+    const mes = mesAtual();
+    const jaExiste = pagamentosRec.find(p => p.atendimentoId === atendimentoId && p.mes === mes);
+    if (jaExiste) { showToast("Pagamento já marcado para este mês!", "err"); return; }
+    const novo = { id: Date.now(), atendimentoId, mes, dataRecebido: new Date().toISOString() };
+    const updated = [...pagamentosRec, novo];
+    setPagamentosRec(updated);
+    await savePagRec(updated);
+    showToast("✅ Pagamento do mês marcado como recebido!");
+  };
+
+  const handleDesfazerRecebido = async (atendimentoId: number) => {
+    const mes = mesAtual();
+    const updated = pagamentosRec.filter(p => !(p.atendimentoId === atendimentoId && p.mes === mes));
+    setPagamentosRec(updated);
+    await savePagRec(updated);
+    showToast("Pagamento do mês desmarcado.");
+  };
+
+  const handleCancelarAssinatura = async (id: number) => {
+    const updated = atendimentos.map(a => a.id === id ? { ...a, assinaturaCancelada: true } : a);
+    setAtendimentos(updated);
+    await saveStorage(updated);
+    showToast("Assinatura cancelada.", "err");
+  };
+
+  const handleReativarAssinatura = async (id: number) => {
+    const updated = atendimentos.map(a => a.id === id ? { ...a, assinaturaCancelada: false } : a);
+    setAtendimentos(updated);
+    await saveStorage(updated);
+    showToast("Assinatura reativada!");
+  };
 
   const handleFeedbackSave = async (id: number, nota: string, comentario: string) => {
     const updated = atendimentos.map(a => a.id === id ? { ...a, feedbackNota: nota, feedbackComentario: comentario, feedbackEm: new Date().toISOString() } : a);
@@ -548,10 +596,30 @@ export default function App() {
               </div>
             </div>
 
+            {/* Cards de Receita em destaque */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+              <div style={{ background: "linear-gradient(135deg,#064e3b,#065f46)", border: "1px solid #10b98140", borderRadius: 14, padding: "20px 24px", position: "relative", overflow: "hidden" }}>
+                <div style={{ position: "absolute", top: -10, right: -10, fontSize: 72, opacity: 0.08 }}>💰</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#6ee7b7", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Receita Total</div>
+                <div style={{ fontSize: 32, fontWeight: 700, color: "#10b981", fontFamily: "'Space Mono',monospace", lineHeight: 1 }}>
+                  {metrics.receitaTotal > 0 ? formatBRL(metrics.receitaTotal) : "—"}
+                </div>
+                <div style={{ fontSize: 12, color: "#6ee7b7", marginTop: 8, opacity: 0.7 }}>Soma de todos os contratos{periodoDashboard !== "todos" ? " no período" : ""}</div>
+              </div>
+              <div style={{ background: "linear-gradient(135deg,#1e1b4b,#2e1065)", border: "1px solid #818cf840", borderRadius: 14, padding: "20px 24px", position: "relative", overflow: "hidden" }}>
+                <div style={{ position: "absolute", top: -10, right: -10, fontSize: 72, opacity: 0.08 }}>🔄</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#a5b4fc", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Receita Recorrente / mês</div>
+                <div style={{ fontSize: 32, fontWeight: 700, color: "#818cf8", fontFamily: "'Space Mono',monospace", lineHeight: 1 }}>
+                  {metrics.receitaRecorrente > 0 ? formatBRL(metrics.receitaRecorrente) : "—"}
+                </div>
+                <div style={{ fontSize: 12, color: "#a5b4fc", marginTop: 8, opacity: 0.7 }}>{metrics.recorrentes.length} assinatura(s) ativa(s)</div>
+              </div>
+            </div>
+
+            {/* Demais métricas */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(185px,1fr))", gap: 12, marginBottom: 24 }}>
               {[
                 { label: "Total de Atendimentos", value: metrics.total, icon: "📥", color: "#6366f1", sub: null },
-                { label: "Receita Total", value: metrics.receitaTotal > 0 ? formatBRL(metrics.receitaTotal) : "—", icon: "💰", color: "#10b981", sub: null },
                 {
                   label: "Tempo Médio de Resposta",
                   value: metrics.avgResposta ? formatDuration(metrics.avgResposta) : "—",
@@ -598,6 +666,85 @@ export default function App() {
                       </div>
                       <div style={{ background: dias! < 0 ? "#ef444422" : "#f59e0b22", color: dias! < 0 ? "#ef4444" : "#f59e0b", borderRadius: 20, padding: "3px 12px", fontSize: 12, fontWeight: 700 }}>
                         {dias! < 0 ? `${Math.abs(dias!)}d atrasado` : dias === 0 ? "Vence hoje" : `${dias}d restantes`}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Assinaturas Recorrentes */}
+            {atendimentos.filter(a => a.recorrenciaAutomatica).length > 0 && (
+              <div style={{ background: "#0f1117", border: "1px solid #818cf830", borderRadius: 14, padding: "20px 24px", marginBottom: 14 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                  <div style={{ fontWeight: 700, color: "#fff", fontSize: 15 }}>🔄 Assinaturas Recorrentes</div>
+                  <div style={{ fontSize: 12, color: "#6b7280" }}>
+                    {new Date().toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+                  </div>
+                </div>
+                {atendimentos.filter(a => a.recorrenciaAutomatica).map((a: any) => {
+                  const mes = mesAtual();
+                  const pago = pagamentosRec.find(p => p.atendimentoId === a.id && p.mes === mes);
+                  const cancelada = a.assinaturaCancelada;
+                  const ultimos3 = [0, 1, 2].map(offset => {
+                    const d = new Date();
+                    d.setMonth(d.getMonth() - offset);
+                    const m = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+                    const p = pagamentosRec.find(p => p.atendimentoId === a.id && p.mes === m);
+                    return { mes: m, label: d.toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }), pago: !!p, data: p?.dataRecebido };
+                  });
+                  return (
+                    <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 0", borderBottom: "1px solid #1a1d2e", flexWrap: "wrap" }}>
+                      <div style={{ flex: 1, minWidth: 180 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                          <span style={{ fontWeight: 700, fontSize: 14, color: cancelada ? "#6b7280" : "#e8eaf0" }}>
+                            {a.empresa ? `${a.empresa}` : a.nomeCliente}
+                          </span>
+                          {a.empresa && <span style={{ fontSize: 12, color: "#9ca3af" }}>· {a.nomeCliente}</span>}
+                          {cancelada && <span style={{ background: "#ef444420", color: "#ef4444", borderRadius: 20, padding: "1px 8px", fontSize: 10, fontWeight: 700 }}>CANCELADA</span>}
+                        </div>
+                        <div style={{ fontSize: 12, color: "#6b7280" }}>
+                          {a.valorContrato ? <span style={{ color: "#818cf8", fontWeight: 700 }}>{formatBRL(a.valorContrato)}/mês</span> : "Sem valor"}
+                          {a.formaPagamento && <span> · {FORMA_ICONS[a.formaPagamento]} {a.formaPagamento}</span>}
+                        </div>
+                      </div>
+
+                      {/* Histórico últimos 3 meses */}
+                      <div style={{ display: "flex", gap: 6 }}>
+                        {ultimos3.map(({ mes: m, label, pago: pg, data }) => (
+                          <div key={m} title={pg && data ? `Recebido em ${formatDateTime(data)}` : `Pendente — ${label}`}
+                            style={{ textAlign: "center", opacity: cancelada ? 0.4 : 1 }}>
+                            <div style={{ width: 28, height: 28, borderRadius: 8, background: pg ? "#10b98122" : "#1a1d2e", border: `1px solid ${pg ? "#10b981" : "#2d3148"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, marginBottom: 3 }}>
+                              {pg ? "✅" : "⏳"}
+                            </div>
+                            <div style={{ fontSize: 9, color: "#4b5563", textTransform: "uppercase" }}>{label}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Ações */}
+                      <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                        {!cancelada && (
+                          pago
+                            ? <button onClick={() => handleDesfazerRecebido(a.id)}
+                                style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #10b98140", background: "#10b98115", color: "#10b981", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                                ✅ Recebido
+                              </button>
+                            : <button onClick={() => handleMarcarRecebido(a.id)}
+                                style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #2d3148", background: "#1a1d2e", color: "#9ca3af", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                                Marcar recebido
+                              </button>
+                        )}
+                        {cancelada
+                          ? <button onClick={() => handleReativarAssinatura(a.id)}
+                              style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #10b98140", background: "#10b98115", color: "#10b981", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                              Reativar
+                            </button>
+                          : <button onClick={() => handleCancelarAssinatura(a.id)}
+                              style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #ef444430", background: "#ef444410", color: "#ef4444", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                              Cancelar
+                            </button>
+                        }
                       </div>
                     </div>
                   );
