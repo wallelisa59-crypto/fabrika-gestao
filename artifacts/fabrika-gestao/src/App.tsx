@@ -896,22 +896,6 @@ export default function App() {
               </div>
             </div>
 
-            {feedbackRecentes.length > 0 && (
-              <div style={{ background: "#0f1117", border: "1px solid #1e2130", borderRadius: 14, padding: "20px 24px", marginBottom: 14 }}>
-                <div style={{ fontWeight: 700, marginBottom: 16, color: "#fff", fontSize: 15 }}>⭐ Feedbacks Recentes</div>
-                {feedbackRecentes.map((a: any) => (
-                  <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 0", borderBottom: "1px solid #1a1d2e" }}>
-                    <div style={{ fontSize: 26 }}>{a.feedbackNota.split(" ")[0]}</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, fontSize: 14 }}>{a.empresa ? `${a.empresa} · ` : ""}{a.nomeCliente || a.cliente} <span style={{ fontWeight: 400, color: "#9ca3af", fontSize: 13 }}>· {a.feedbackNota.split(" ").slice(1).join(" ")}</span></div>
-                      {a.feedbackComentario && <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2, fontStyle: "italic" }}>"{a.feedbackComentario}"</div>}
-                    </div>
-                    <div style={{ fontSize: 11, color: "#4b5563" }}>{formatDate(a.feedbackEm)}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-
             <div style={{ background: "#0f1117", border: "1px solid #1e2130", borderRadius: 14, padding: "20px 24px" }}>
               <div style={{ fontWeight: 700, marginBottom: 16, color: "#fff", fontSize: 15 }}>🕐 Últimos Registros</div>
               {atendimentosPeriodo.slice(0, 5).length === 0
@@ -1018,8 +1002,8 @@ export default function App() {
               </div>
 
               <div style={{ marginBottom: 18 }}>
-                <Label>Descrição</Label>
-                <textarea value={form.descricao} onChange={e => setForm(p => ({ ...p, descricao: e.target.value }))} placeholder="O que foi solicitado..." rows={3}
+                <Label>O que foi solicitado</Label>
+                <textarea value={form.descricao} onChange={e => setForm(p => ({ ...p, descricao: e.target.value }))} placeholder="Descreva o que o cliente solicitou..." rows={3}
                   style={{ width: "100%", padding: "10px 14px", background: "#1a1d2e", border: "1px solid #2d3148", borderRadius: 9, color: "#e8eaf0", fontSize: 14, outline: "none", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }} />
               </div>
 
@@ -1362,7 +1346,7 @@ export default function App() {
 
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         {avgFeed && <div style={{ background: "#f59e0b15", borderRadius: 8, padding: "5px 12px", fontSize: 13, color: "#f59e0b", fontWeight: 700 }}>⭐ {avgFeed}/4</div>}
-                        {prazoUrgente && <div style={{ background: "#ef444415", borderRadius: 8, padding: "5px 12px", fontSize: 13, color: "#ef4444", fontWeight: 700 }}>🚨 Prazo urgente</div>}
+                        {prazoUrgente && <div style={{ background: "#ef444415", borderRadius: 8, padding: "5px 12px", fontSize: 13, color: "#ef4444", fontWeight: 700 }}>⚠️ Entrega vencendo</div>}
                       </div>
                       <div style={{ marginTop: 12, fontSize: 12, color: "#6b7280" }}>Ver histórico completo <span style={{ color: "#6366f1" }}>→</span></div>
                     </div>
