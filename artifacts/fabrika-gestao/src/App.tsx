@@ -501,9 +501,29 @@ export default function App() {
   const feedbackRecentes = atendimentosPeriodo.filter(a => a.feedbackNota).sort((x, y) => new Date(y.feedbackEm).getTime() - new Date(x.feedbackEm).getTime()).slice(0, 5);
   const alertasPrazo = [...metrics.atrasados, ...metrics.vencendoHoje].filter((a, i, arr) => arr.findIndex((b: any) => b.id === a.id) === i);
   const respostaClassif = classifyResposta(metrics.avgResposta);
-  const receitaConfirmadaRec = pagamentosRec.reduce((s: number, p: any) => s + Number(p.valor || 0), 0);
+
+  const pagamentosRecPeriodo = pagamentosRec.filter((p: any) => {
+    if (periodoDashboard === "todos") return true;
+    const recebido = new Date(p.dataRecebido);
+    const agora = new Date();
+    const inicioHoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+    if (periodoDashboard === "hoje") return recebido >= inicioHoje;
+    if (periodoDashboard === "7dias") { const d = new Date(inicioHoje); d.setDate(d.getDate() - 6); return recebido >= d; }
+    if (periodoDashboard === "mensal") return recebido >= new Date(agora.getFullYear(), agora.getMonth(), 1);
+    return true;
+  });
+  const receitaConfirmadaRec = pagamentosRecPeriodo.reduce((s: number, p: any) => s + Number(p.valor || 0), 0);
   const receitaTotal = metrics.receitaAvulsa + receitaConfirmadaRec;
   const assinaturasAtivas = atendimentos.filter(a => a.recorrenciaAutomatica && !a.assinaturaCancelada).length;
+
+  const periodoLabel = (() => {
+    const agora = new Date();
+    const fmt = (d: Date) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+    if (periodoDashboard === "hoje") return `Hoje, ${fmt(agora)}`;
+    if (periodoDashboard === "7dias") { const d = new Date(agora); d.setDate(d.getDate() - 6); return `${fmt(d)} – ${fmt(agora)}`; }
+    if (periodoDashboard === "mensal") return `${fmt(new Date(agora.getFullYear(), agora.getMonth(), 1))} – ${fmt(agora)}`;
+    return "Todo o histórico";
+  })();
 
   const abrirHistorico = (a: any) => {
     const key = chaveCliente(a);
@@ -584,20 +604,25 @@ export default function App() {
                   {periodoDashboard === "todos" && <span> · {clientes.length} cliente(s)</span>}
                 </div>
               </div>
-              <div style={{ display: "flex", gap: 6, background: "#0f1117", border: "1px solid #1e2130", borderRadius: 10, padding: 4 }}>
-                {([
-                  { key: "hoje", label: "Hoje" },
-                  { key: "7dias", label: "7 Dias" },
-                  { key: "mensal", label: "Mensal" },
-                  { key: "todos", label: "Todos" },
-                ] as const).map(({ key, label }) => (
-                  <button key={key} onClick={() => setPeriodoDashboard(key)}
-                    style={{ padding: "6px 16px", borderRadius: 7, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, transition: "all 0.15s",
-                      background: periodoDashboard === key ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : "transparent",
-                      color: periodoDashboard === key ? "#fff" : "#6b7280" }}>
-                    {label}
-                  </button>
-                ))}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                <div style={{ display: "flex", gap: 4, background: "#0f1117", border: "1px solid #1e2130", borderRadius: 10, padding: 4 }}>
+                  {([
+                    { key: "hoje", label: "Hoje", desc: "Somente hoje" },
+                    { key: "7dias", label: "7 Dias", desc: "Última semana" },
+                    { key: "mensal", label: "Este mês", desc: "Mês corrente" },
+                    { key: "todos", label: "Tudo", desc: "Histórico completo" },
+                  ] as const).map(({ key, label }) => (
+                    <button key={key} onClick={() => setPeriodoDashboard(key)}
+                      style={{ padding: "6px 14px", borderRadius: 7, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, transition: "all 0.15s",
+                        background: periodoDashboard === key ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : "transparent",
+                        color: periodoDashboard === key ? "#fff" : "#6b7280" }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ fontSize: 12, color: "#4b5563", fontFamily: "'Space Mono',monospace" }}>
+                  📅 {periodoLabel}
+                </div>
               </div>
             </div>
 
@@ -613,11 +638,18 @@ export default function App() {
               </div>
               <div style={{ background: "linear-gradient(135deg,#1e1b4b,#2e1065)", border: "1px solid #818cf840", borderRadius: 14, padding: "20px 24px", position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "absolute", top: -10, right: -10, fontSize: 72, opacity: 0.08 }}>🔄</div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#a5b4fc", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Receita Recorrente / mês</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#a5b4fc", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Recorrente Confirmado</div>
                 <div style={{ fontSize: 28, fontWeight: 700, color: "#818cf8", fontFamily: "'Space Mono',monospace", lineHeight: 1 }}>
-                  {metrics.receitaRecorrente > 0 ? formatBRL(metrics.receitaRecorrente) : "—"}
+                  {receitaConfirmadaRec > 0 ? formatBRL(receitaConfirmadaRec) : "—"}
                 </div>
-                <div style={{ fontSize: 12, color: "#a5b4fc", marginTop: 8, opacity: 0.7 }}>{metrics.recorrentes.length} assinatura(s) ativa(s)</div>
+                <div style={{ fontSize: 12, color: "#a5b4fc", marginTop: 8, opacity: 0.7 }}>
+                  Pagamentos recebidos no período
+                </div>
+                {metrics.receitaRecorrente > 0 && (
+                  <div style={{ marginTop: 6, fontSize: 11, color: "#6d7bbf" }}>
+                    Esperado: {formatBRL(metrics.receitaRecorrente)}/mês ({assinaturasAtivas} ativa{assinaturasAtivas !== 1 ? "s" : ""})
+                  </div>
+                )}
               </div>
               <div style={{ background: "linear-gradient(135deg,#1c1917,#292524)", border: "1px solid #f59e0b40", borderRadius: 14, padding: "20px 24px", position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "absolute", top: -10, right: -10, fontSize: 72, opacity: 0.08 }}>🧾</div>
