@@ -331,7 +331,9 @@ export default function App() {
   const [feedbackAtendimento, setFeedbackAtendimento] = useState<any>(null);
   const [clienteHistoricoKey, setClienteHistoricoKey] = useState<string | null>(null);
   const [periodoDashboard, setPeriodoDashboard] = useState<string>("todos");
+  const [periodoAberto, setPeriodoAberto] = useState(false);
   const [anoSeletor, setAnoSeletor] = useState<number>(new Date().getFullYear());
+  const [mesSeletor, setMesSeletor] = useState<number | null>(null);
   const [pagamentosRec, setPagamentosRec] = useState<any[]>([]);
 
   const showToast = (msg: string, type = "ok") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
@@ -494,6 +496,10 @@ export default function App() {
     const inicioHoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
     if (periodoDashboard === "hoje") return criadoEm >= inicioHoje;
     if (periodoDashboard === "7dias") { const d = new Date(inicioHoje); d.setDate(d.getDate() - 6); return criadoEm >= d; }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(periodoDashboard)) {
+      const [y, m, d] = periodoDashboard.split("-").map(Number);
+      return criadoEm >= new Date(y, m - 1, d) && criadoEm < new Date(y, m - 1, d + 1);
+    }
     if (/^\d{4}-\d{2}$/.test(periodoDashboard)) {
       const [y, m] = periodoDashboard.split("-").map(Number);
       return criadoEm >= new Date(y, m - 1, 1) && criadoEm < new Date(y, m, 1);
@@ -513,6 +519,10 @@ export default function App() {
     const inicioHoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
     if (periodoDashboard === "hoje") return recebido >= inicioHoje;
     if (periodoDashboard === "7dias") { const d = new Date(inicioHoje); d.setDate(d.getDate() - 6); return recebido >= d; }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(periodoDashboard)) {
+      const [y, m, d] = periodoDashboard.split("-").map(Number);
+      return recebido >= new Date(y, m - 1, d) && recebido < new Date(y, m - 1, d + 1);
+    }
     if (/^\d{4}-\d{2}$/.test(periodoDashboard)) {
       const [y, m] = periodoDashboard.split("-").map(Number);
       return recebido >= new Date(y, m - 1, 1) && recebido < new Date(y, m, 1);
@@ -531,6 +541,10 @@ export default function App() {
     const fmt = (d: Date) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
     if (periodoDashboard === "hoje") return `Hoje, ${fmt(agora)}`;
     if (periodoDashboard === "7dias") { const d = new Date(agora); d.setDate(d.getDate() - 6); return `${fmt(d)} – ${fmt(agora)}`; }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(periodoDashboard)) {
+      const [y, m, d] = periodoDashboard.split("-").map(Number);
+      return `${String(d).padStart(2,"0")}/${String(m).padStart(2,"0")}/${y}`;
+    }
     if (/^\d{4}-\d{2}$/.test(periodoDashboard)) {
       const [y, m] = periodoDashboard.split("-").map(Number);
       return `${MESES_PT[m - 1]} de ${y}`;
@@ -617,52 +631,115 @@ export default function App() {
                   {periodoDashboard === "todos" && <span> · {clientes.length} cliente(s)</span>}
                 </div>
               </div>
-              <div style={{ background: "#0f1117", border: "1px solid #1e2130", borderRadius: 14, padding: "12px 14px", minWidth: 280 }}>
-                {/* Atalhos rápidos */}
-                <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
-                  {([{ key: "hoje", label: "Hoje" }, { key: "7dias", label: "7 Dias" }, { key: "todos", label: "Tudo" }] as const).map(({ key, label }) => {
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+                {/* Barra compacta sempre visível */}
+                <div style={{ display: "flex", gap: 4, background: "#0f1117", border: "1px solid #1e2130", borderRadius: 10, padding: 4 }}>
+                  {([{ key: "hoje", label: "Hoje" }, { key: "7dias", label: "7 Dias" }] as const).map(({ key, label }) => {
                     const ativo = periodoDashboard === key;
                     return (
-                      <button key={key} onClick={() => setPeriodoDashboard(key)}
-                        style={{ flex: 1, padding: "5px 0", borderRadius: 7, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, transition: "all 0.15s",
-                          background: ativo ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : "#161926",
+                      <button key={key} onClick={() => { setPeriodoDashboard(key); setPeriodoAberto(false); }}
+                        style={{ padding: "6px 14px", borderRadius: 7, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, transition: "all 0.15s",
+                          background: ativo ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : "transparent",
                           color: ativo ? "#fff" : "#6b7280" }}>
                         {label}
                       </button>
                     );
                   })}
+                  {/* Botão Período — abre o picker */}
+                  <button onClick={() => { setPeriodoAberto(v => !v); }}
+                    style={{ padding: "6px 14px", borderRadius: 7, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, transition: "all 0.15s",
+                      background: periodoAberto || /^\d{4}/.test(periodoDashboard) ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : "transparent",
+                      color: periodoAberto || /^\d{4}/.test(periodoDashboard) ? "#fff" : "#6b7280" }}>
+                    Período {periodoAberto ? "▲" : "▼"}
+                  </button>
+                  <button onClick={() => { setPeriodoDashboard("todos"); setPeriodoAberto(false); setMesSeletor(null); }}
+                    style={{ padding: "6px 14px", borderRadius: 7, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, transition: "all 0.15s",
+                      background: periodoDashboard === "todos" && !periodoAberto ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : "transparent",
+                      color: periodoDashboard === "todos" && !periodoAberto ? "#fff" : "#6b7280" }}>
+                    Tudo
+                  </button>
                 </div>
-                {/* Navegação de ano */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                  <button onClick={() => setAnoSeletor(a => a - 1)}
-                    style={{ background: "none", border: "none", color: "#6b7280", cursor: "pointer", fontSize: 16, padding: "0 6px", lineHeight: 1 }}>‹</button>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#c4c9d8", letterSpacing: 1 }}>{anoSeletor}</span>
-                  <button onClick={() => setAnoSeletor(a => a + 1)}
-                    style={{ background: "none", border: "none", color: "#6b7280", cursor: "pointer", fontSize: 16, padding: "0 6px", lineHeight: 1 }}>›</button>
-                </div>
-                {/* Grid de meses */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 4 }}>
-                  {MESES_ABREV.map((mes, i) => {
-                    const chave = `${anoSeletor}-${String(i + 1).padStart(2, "0")}`;
-                    const ativo = periodoDashboard === chave;
-                    const agora = new Date();
-                    const isFuturo = anoSeletor > agora.getFullYear() || (anoSeletor === agora.getFullYear() && i > agora.getMonth());
-                    return (
-                      <button key={mes} onClick={() => !isFuturo && setPeriodoDashboard(chave)}
-                        style={{ padding: "6px 0", borderRadius: 7, border: ativo ? "1px solid #6366f1" : "1px solid transparent",
-                          cursor: isFuturo ? "default" : "pointer", fontSize: 12, fontWeight: ativo ? 700 : 500,
-                          background: ativo ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : "#161926",
-                          color: ativo ? "#fff" : isFuturo ? "#2d3347" : "#9ca3af",
-                          transition: "all 0.12s" }}>
-                        {mes}
-                      </button>
-                    );
-                  })}
-                </div>
+
                 {/* Label do período ativo */}
-                <div style={{ marginTop: 10, textAlign: "center", fontSize: 11, color: "#4b5563", fontFamily: "'Space Mono',monospace", borderTop: "1px solid #1e2130", paddingTop: 8 }}>
+                <div style={{ fontSize: 11, color: "#4b5563", fontFamily: "'Space Mono',monospace" }}>
                   📅 {periodoLabel}
                 </div>
+
+                {/* Picker expandido — só aparece quando "Período" está aberto */}
+                {periodoAberto && (() => {
+                  const agora = new Date();
+                  const diasNoMes = mesSeletor !== null ? new Date(anoSeletor, mesSeletor + 1, 0).getDate() : 0;
+                  const mesChave = mesSeletor !== null ? `${anoSeletor}-${String(mesSeletor + 1).padStart(2,"0")}` : null;
+
+                  return (
+                    <div style={{ background: "#0f1117", border: "1px solid #1e2130", borderRadius: 14, padding: "14px", width: 280 }}>
+                      {/* Navegação de ano */}
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                        <button onClick={() => { setAnoSeletor(a => a - 1); setMesSeletor(null); }}
+                          style={{ background: "none", border: "none", color: "#6b7280", cursor: "pointer", fontSize: 18, padding: "0 8px", lineHeight: 1 }}>‹</button>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: "#c4c9d8", letterSpacing: 1 }}>{anoSeletor}</span>
+                        <button onClick={() => { setAnoSeletor(a => a + 1); setMesSeletor(null); }}
+                          style={{ background: "none", border: "none", color: "#6b7280", cursor: "pointer", fontSize: 18, padding: "0 8px", lineHeight: 1 }}>›</button>
+                      </div>
+
+                      {/* Grid de meses */}
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 4, marginBottom: mesSeletor !== null ? 10 : 0 }}>
+                        {MESES_ABREV.map((mes, i) => {
+                          const isFuturo = anoSeletor > agora.getFullYear() || (anoSeletor === agora.getFullYear() && i > agora.getMonth());
+                          const chave = `${anoSeletor}-${String(i + 1).padStart(2,"0")}`;
+                          const ativoMes = mesSeletor === i || (periodoDashboard === chave && mesSeletor === null);
+                          return (
+                            <button key={mes} onClick={() => {
+                              if (isFuturo) return;
+                              setMesSeletor(i);
+                              setPeriodoDashboard(chave);
+                            }}
+                              style={{ padding: "6px 0", borderRadius: 7, border: ativoMes ? "1px solid #6366f1" : "1px solid transparent",
+                                cursor: isFuturo ? "default" : "pointer", fontSize: 12, fontWeight: ativoMes ? 700 : 500,
+                                background: ativoMes ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : "#161926",
+                                color: ativoMes ? "#fff" : isFuturo ? "#2d3347" : "#9ca3af",
+                                transition: "all 0.12s" }}>
+                              {mes}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Grid de dias — aparece quando um mês está selecionado */}
+                      {mesSeletor !== null && (
+                        <>
+                          <div style={{ borderTop: "1px solid #1e2130", paddingTop: 10, marginBottom: 6 }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                              <span style={{ fontSize: 12, color: "#6b7280" }}>{MESES_PT[mesSeletor]} — escolha o dia</span>
+                              <button onClick={() => { setMesSeletor(null); setPeriodoDashboard(mesChave!); }}
+                                style={{ background: "none", border: "none", color: "#6b7280", cursor: "pointer", fontSize: 11 }}>× limpar dia</button>
+                            </div>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 3 }}>
+                              {Array.from({ length: diasNoMes }, (_, idx) => {
+                                const dia = idx + 1;
+                                const chaveDia = `${anoSeletor}-${String(mesSeletor + 1).padStart(2,"0")}-${String(dia).padStart(2,"0")}`;
+                                const isFuturoDia = anoSeletor > agora.getFullYear() ||
+                                  (anoSeletor === agora.getFullYear() && mesSeletor > agora.getMonth()) ||
+                                  (anoSeletor === agora.getFullYear() && mesSeletor === agora.getMonth() && dia > agora.getDate());
+                                const ativoDia = periodoDashboard === chaveDia;
+                                return (
+                                  <button key={dia} onClick={() => !isFuturoDia && setPeriodoDashboard(chaveDia)}
+                                    style={{ padding: "5px 0", borderRadius: 5, border: ativoDia ? "1px solid #6366f1" : "1px solid transparent",
+                                      cursor: isFuturoDia ? "default" : "pointer", fontSize: 11, fontWeight: ativoDia ? 700 : 400,
+                                      background: ativoDia ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : "#161926",
+                                      color: ativoDia ? "#fff" : isFuturoDia ? "#2d3347" : "#9ca3af",
+                                      transition: "all 0.1s" }}>
+                                    {dia}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
