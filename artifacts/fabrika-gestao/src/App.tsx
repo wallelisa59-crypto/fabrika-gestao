@@ -557,6 +557,35 @@ export default function App() {
     setClienteHistoricoKey(key);
   };
 
+  const exportarCSV = (dados: any[], nomeArquivo: string) => {
+    const escape = (v: any) => {
+      const s = v === null || v === undefined ? "" : String(v);
+      return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const headers = ["Cliente","Empresa","Canal","Status","Responsável","Data","Valor (R$)","Tipo Contrato","Modelo Cobrança","Forma Pagamento","CPF/CNPJ","Recorrente","Observação"];
+    const linhas = dados.map(a => [
+      a.nomeCliente || a.cliente || "",
+      a.empresa || "",
+      a.canal || "",
+      a.status || "",
+      a.responsavel || "",
+      a.criadoEm ? new Date(a.criadoEm).toLocaleDateString("pt-BR") : "",
+      a.valorContrato || "",
+      a.tipoContrato || "",
+      a.modeloCobranca || "",
+      a.formaPagamento || "",
+      a.tipoPessoa === "juridica" ? (a.cnpj || "") : (a.cpf || ""),
+      a.recorrenciaAutomatica ? "Sim" : "Não",
+      a.observacao || "",
+    ].map(escape).join(","));
+    const csv = [headers.join(","), ...linhas].join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url; link.download = nomeArquivo; link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div style={{ minHeight: "100vh", background: "#0b0d14", fontFamily: "'DM Sans',sans-serif", color: "#e8eaf0" }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
@@ -625,10 +654,18 @@ export default function App() {
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 24 }}>
               <div>
                 <div style={{ fontSize: 22, fontWeight: 700, color: "#fff" }}>Visão Geral</div>
-                <div style={{ color: "#6b7280", fontSize: 13, marginTop: 2 }}>
-                  {atendimentosPeriodo.length} atendimento(s)
-                  {periodoDashboard !== "todos" && <span style={{ color: "#4b5563" }}> no período</span>}
-                  {periodoDashboard === "todos" && <span> · {clientes.length} cliente(s)</span>}
+                <div style={{ color: "#6b7280", fontSize: 13, marginTop: 2, display: "flex", alignItems: "center", gap: 10 }}>
+                  <span>
+                    {atendimentosPeriodo.length} atendimento(s)
+                    {periodoDashboard !== "todos" && <span style={{ color: "#4b5563" }}> no período</span>}
+                    {periodoDashboard === "todos" && <span> · {clientes.length} cliente(s)</span>}
+                  </span>
+                  {atendimentosPeriodo.length > 0 && (
+                    <button onClick={() => exportarCSV(atendimentosPeriodo, `fabrika-dashboard-${periodoLabel.replace(/\s/g,"-")}.csv`)}
+                      style={{ padding: "3px 10px", background: "#1a1d2e", border: "1px solid #2d3148", borderRadius: 6, color: "#6b7280", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+                      ⬇ Exportar CSV
+                    </button>
+                  )}
                 </div>
               </div>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
@@ -1181,9 +1218,17 @@ export default function App() {
         {/* ── LISTA ── */}
         {tab === "lista" && (
           <div>
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 22, fontWeight: 700, color: "#fff", marginBottom: 4 }}>📋 Todos os Atendimentos</div>
-              <div style={{ color: "#6b7280", fontSize: 13 }}>{filtrados.length} resultado(s)</div>
+            <div style={{ marginBottom: 20, display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+              <div>
+                <div style={{ fontSize: 22, fontWeight: 700, color: "#fff", marginBottom: 4 }}>📋 Todos os Atendimentos</div>
+                <div style={{ color: "#6b7280", fontSize: 13 }}>{filtrados.length} resultado(s)</div>
+              </div>
+              {filtrados.length > 0 && (
+                <button onClick={() => exportarCSV(filtrados, `fabrika-lista-${new Date().toLocaleDateString("pt-BR").replace(/\//g,"-")}.csv`)}
+                  style={{ padding: "8px 16px", background: "#1a1d2e", border: "1px solid #2d3148", borderRadius: 8, color: "#9ca3af", fontSize: 12, fontWeight: 600, cursor: "pointer", alignSelf: "center", display: "flex", alignItems: "center", gap: 6 }}>
+                  ⬇ Exportar CSV
+                </button>
+              )}
             </div>
             <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
               <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
@@ -1266,7 +1311,12 @@ export default function App() {
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 12 }}>
                 {(clientes as any[]).map(c => {
-                  const receita = c.atendimentos.filter((a: any) => a.valorContrato).reduce((s: number, a: any) => s + Number(a.valorContrato), 0);
+                  const ids = new Set(c.atendimentos.map((a: any) => a.id));
+                  const recAvulsa = c.atendimentos.filter((a: any) => a.valorContrato && !a.recorrenciaAutomatica).reduce((s: number, a: any) => s + Number(a.valorContrato), 0);
+                  const recConfirmadaRec = pagamentosRec.filter((p: any) => ids.has(p.atendimentoId)).reduce((s: number, p: any) => s + Number(p.valor || 0), 0);
+                  const ltv = recAvulsa + recConfirmadaRec;
+                  const assinaturaAtiva = c.atendimentos.find((a: any) => a.recorrenciaAutomatica && !a.assinaturaCancelada);
+                  const recEsperada = c.atendimentos.filter((a: any) => a.recorrenciaAutomatica && !a.assinaturaCancelada).reduce((s: number, a: any) => s + Number(a.valorContrato || 0), 0);
                   const ultimo = c.atendimentos.sort((a: any, b: any) => new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime())[0];
                   const feedbacks = c.atendimentos.filter((a: any) => a.feedbackNota);
                   const notaMap: any = { "😠 Ruim": 1, "😐 Regular": 2, "😊 Bom": 3, "🤩 Ótimo": 4 };
@@ -1286,8 +1336,31 @@ export default function App() {
                         </div>
                         {statusAtual && <div style={{ background: STATUS_COLORS[statusAtual] + "22", color: STATUS_COLORS[statusAtual], borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700, flexShrink: 0 }}>{STATUS_ICONS[statusAtual]}</div>}
                       </div>
+
+                      {/* Resumo financeiro */}
+                      {ltv > 0 && (
+                        <div style={{ background: "#0a0c12", borderRadius: 10, padding: "10px 14px", marginBottom: 10 }}>
+                          <div style={{ fontSize: 10, color: "#4b5563", fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Resumo Financeiro</div>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                            <div>
+                              <div style={{ fontSize: 20, fontWeight: 700, color: "#10b981", fontFamily: "'Space Mono',monospace" }}>{formatBRL(ltv)}</div>
+                              <div style={{ fontSize: 10, color: "#4b5563", marginTop: 2 }}>LTV total gerado</div>
+                            </div>
+                            <div style={{ textAlign: "right" }}>
+                              {recAvulsa > 0 && <div style={{ fontSize: 11, color: "#f59e0b" }}>Avulso: {formatBRL(recAvulsa)}</div>}
+                              {recConfirmadaRec > 0 && <div style={{ fontSize: 11, color: "#818cf8" }}>Rec. confirmado: {formatBRL(recConfirmadaRec)}</div>}
+                            </div>
+                          </div>
+                          {assinaturaAtiva && recEsperada > 0 && (
+                            <div style={{ marginTop: 8, borderTop: "1px solid #1e2130", paddingTop: 7, display: "flex", alignItems: "center", gap: 6 }}>
+                              <span style={{ background: "#818cf820", color: "#818cf8", borderRadius: 20, padding: "1px 8px", fontSize: 10, fontWeight: 700 }}>🔄 ASSINATURA ATIVA</span>
+                              <span style={{ fontSize: 11, color: "#818cf8", fontWeight: 700 }}>{formatBRL(recEsperada)}/mês</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        {receita > 0 && <div style={{ background: "#10b98115", borderRadius: 8, padding: "5px 12px", fontSize: 13, color: "#10b981", fontWeight: 700 }}>💰 {formatBRL(receita)}</div>}
                         {avgFeed && <div style={{ background: "#f59e0b15", borderRadius: 8, padding: "5px 12px", fontSize: 13, color: "#f59e0b", fontWeight: 700 }}>⭐ {avgFeed}/4</div>}
                         {prazoUrgente && <div style={{ background: "#ef444415", borderRadius: 8, padding: "5px 12px", fontSize: 13, color: "#ef4444", fontWeight: 700 }}>🚨 Prazo urgente</div>}
                       </div>
