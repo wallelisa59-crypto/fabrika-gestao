@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { storage } from "./lib/storage";
+import { useIsMobile } from "./hooks/use-mobile";
 
 const CANAIS = ["WhatsApp", "Instagram", "E-mail", "Telefone", "Presencial", "Outro"];
 const STATUS = ["Em negociação", "Em desenvolvimento", "Perdido", "Concluído"];
@@ -145,14 +146,15 @@ const Field = ({ value, onChange, placeholder, type = "text", min }: { value: st
 );
 
 function FeedbackModal({ atendimento, onSave, onClose }: any) {
+  const isMobile = useIsMobile();
   const [nota, setNota] = useState<string | null>(null);
   const [comentario, setComentario] = useState("");
   const [enviado, setEnviado] = useState(false);
   const a = atendimento;
   if (!a) return null;
   if (enviado || a.feedbackNota) return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <div style={{ textAlign: "center", maxWidth: 400 }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", zIndex: 2000, display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 24 }}>
+      <div style={{ textAlign: "center", maxWidth: 400, width: "100%", background: isMobile ? "#0f1117" : "transparent", borderRadius: isMobile ? "20px 20px 0 0" : 0, padding: isMobile ? "32px 24px 40px" : 0 }}>
         <div style={{ fontSize: 64 }}>🎉</div>
         <div style={{ fontSize: 24, fontWeight: 700, color: "#fff", marginTop: 16 }}>
           {a.feedbackNota && !enviado ? "Feedback já registrado!" : "Obrigado pelo feedback!"}
@@ -166,8 +168,8 @@ function FeedbackModal({ atendimento, onSave, onClose }: any) {
   );
   const nomeExibido = a.empresa ? `${a.empresa} · ${a.nomeCliente || a.cliente}` : (a.nomeCliente || a.cliente);
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <div style={{ background: "#0f1117", border: "1px solid #1e2130", borderRadius: 20, width: "100%", maxWidth: 480, padding: 32, position: "relative" }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.88)", zIndex: 2000, display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 24 }}>
+      <div style={{ background: "#0f1117", border: "1px solid #1e2130", borderRadius: isMobile ? "20px 20px 0 0" : 20, width: "100%", maxWidth: isMobile ? "100%" : 480, padding: isMobile ? "28px 20px 40px" : 32, position: "relative" }}>
         <button onClick={onClose} style={{ position: "absolute", top: 16, right: 16, background: "#1a1d2e", border: "1px solid #2d3148", borderRadius: 8, color: "#9ca3af", cursor: "pointer", padding: "4px 12px", fontSize: 13 }}>✕</button>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{ width: 56, height: 56, background: "linear-gradient(135deg,#6366f1,#8b5cf6)", borderRadius: 16, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 28, marginBottom: 12 }}>⭐</div>
@@ -207,6 +209,7 @@ function FeedbackModal({ atendimento, onSave, onClose }: any) {
 }
 
 function ClienteHistorico({ clienteKey, clientes, onClose, onEdit }: any) {
+  const isMobile = useIsMobile();
   const grupo: any = clientes.find((c: any) => (c.empresa || c.nomeCliente).trim().toLowerCase() === clienteKey.trim().toLowerCase());
   if (!grupo) return null;
   const hist = grupo.atendimentos.sort((a: any, b: any) => new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime());
@@ -216,8 +219,8 @@ function ClienteHistorico({ clienteKey, clientes, onClose, onEdit }: any) {
   const avgFeed = feedbacks.length ? (feedbacks.reduce((s: number, a: any) => s + notaMap[a.feedbackNota], 0) / feedbacks.length).toFixed(1) : null;
   const titulo = grupo.empresa ? `${grupo.empresa}${grupo.nomeCliente ? ` · ${grupo.nomeCliente}` : ""}` : grupo.nomeCliente;
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.78)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onClose}>
-      <div style={{ background: "#0f1117", border: "1px solid #1e2130", borderRadius: 20, width: "100%", maxWidth: 700, maxHeight: "88vh", overflow: "auto", padding: 32 }} onClick={e => e.stopPropagation()}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.78)", zIndex: 1000, display: "flex", alignItems: isMobile ? "flex-end" : "center", justifyContent: "center", padding: isMobile ? 0 : 20 }} onClick={onClose}>
+      <div style={{ background: "#0f1117", border: "1px solid #1e2130", borderRadius: isMobile ? "20px 20px 0 0" : 20, width: "100%", maxWidth: isMobile ? "100%" : 700, maxHeight: isMobile ? "92vh" : "88vh", overflow: "auto", padding: isMobile ? "24px 16px 40px" : 32 }} onClick={e => e.stopPropagation()}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 }}>
           <div>
             <div style={{ fontSize: 22, fontWeight: 700, color: "#fff" }}>👤 {titulo}</div>
@@ -225,7 +228,7 @@ function ClienteHistorico({ clienteKey, clientes, onClose, onEdit }: any) {
           </div>
           <button onClick={onClose} style={{ background: "#1a1d2e", border: "1px solid #2d3148", borderRadius: 8, color: "#9ca3af", cursor: "pointer", padding: "6px 14px", fontSize: 14 }}>✕ Fechar</button>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 24 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 12, marginBottom: 24 }}>
           {[
             { label: "Receita total", value: receita > 0 ? formatBRL(receita) : "—", icon: "💰", color: "#10b981" },
             { label: "Avaliação média", value: avgFeed ? `${avgFeed}/4` : "—", icon: "⭐", color: "#f59e0b" },
@@ -319,6 +322,7 @@ function AutocompleteCliente({ value, onChange, onSelect, clientes, placeholder 
 }
 
 export default function App() {
+  const isMobile = useIsMobile();
   const [tab, setTab] = useState("dashboard");
   const [atendimentos, setAtendimentos] = useState<any[]>([]);
   const [form, setForm] = useState({ ...EMPTY_FORM });
@@ -604,13 +608,13 @@ export default function App() {
       )}
 
       {toast && (
-        <div style={{ position: "fixed", top: 20, right: 20, zIndex: 9999, background: toast.type === "err" ? "#ef4444" : "#10b981", color: "#fff", padding: "12px 20px", borderRadius: 10, fontWeight: 600, fontSize: 14, boxShadow: "0 4px 24px rgba(0,0,0,0.5)", animation: "fadeIn 0.2s ease" }}>
+        <div style={{ position: "fixed", top: isMobile ? "auto" : 20, bottom: isMobile ? 90 : "auto", left: isMobile ? 12 : "auto", right: isMobile ? 12 : 20, zIndex: 9999, background: toast.type === "err" ? "#ef4444" : "#10b981", color: "#fff", padding: "12px 20px", borderRadius: 10, fontWeight: 600, fontSize: 14, boxShadow: "0 4px 24px rgba(0,0,0,0.5)", animation: "fadeIn 0.2s ease", textAlign: isMobile ? "center" : "left" }}>
           {toast.type === "err" ? "⚠️" : "✅"} {toast.msg}
         </div>
       )}
 
       {alertasPrazo.length > 0 && tab === "dashboard" && (
-        <div style={{ background: "#ef444415", borderBottom: "1px solid #ef444430", padding: "10px 24px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ background: "#ef444415", borderBottom: "1px solid #ef444430", padding: isMobile ? "10px 14px" : "10px 24px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <span style={{ fontSize: 18 }}>🚨</span>
           <span style={{ fontWeight: 700, color: "#ef4444", fontSize: 14 }}>
             {metrics.atrasados.length > 0 && `${metrics.atrasados.length} prazo(s) vencido(s)`}
@@ -622,32 +626,63 @@ export default function App() {
       )}
 
       {/* Header */}
-      <div style={{ borderBottom: "1px solid #1e2130", padding: "14px 24px", display: "flex", alignItems: "center", background: "#0f1117", flexWrap: "wrap", gap: 12 }}>
+      <div style={{ borderBottom: "1px solid #1e2130", padding: isMobile ? "12px 16px" : "14px 24px", display: "flex", alignItems: "center", background: "#0f1117", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 38, height: 38, background: "linear-gradient(135deg,#6366f1,#8b5cf6)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>📊</div>
+          <div style={{ width: 36, height: 36, background: "linear-gradient(135deg,#6366f1,#8b5cf6)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>📊</div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 16, color: "#fff" }}>Fabrika</div>
-            <div style={{ fontSize: 10, color: "#6b7280", fontFamily: "'Space Mono',monospace", letterSpacing: 1 }}>PAINEL DE GESTÃO · AGÊNCIA</div>
+            <div style={{ fontWeight: 700, fontSize: isMobile ? 15 : 16, color: "#fff" }}>Fabrika</div>
+            {!isMobile && <div style={{ fontSize: 10, color: "#6b7280", fontFamily: "'Space Mono',monospace", letterSpacing: 1 }}>PAINEL DE GESTÃO · AGÊNCIA</div>}
           </div>
         </div>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {[
-            { id: "dashboard", label: "📈 Dashboard" },
-            { id: "novo", label: editId ? "✏️ Editar" : "➕ Novo" },
-            { id: "lista", label: "📋 Lista" },
-            { id: "assinaturas", label: `🔄 Assinaturas${assinaturasAtivas > 0 ? ` (${assinaturasAtivas})` : ""}` },
-            { id: "clientes", label: `👥 Clientes (${clientes.length})` },
-            { id: "feedbacks", label: `⭐ Feedbacks${metrics.feedbackCount > 0 ? ` (${metrics.feedbackCount})` : ""}` },
-          ].map(t => (
-            <button key={t.id} onClick={() => { setTab(t.id); if (t.id !== "novo") { setForm({ ...EMPTY_FORM }); setEditId(null); } }}
-              style={{ padding: "7px 14px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, background: tab === t.id ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : "#1a1d2e", color: tab === t.id ? "#fff" : "#9ca3af", transition: "all 0.2s" }}>
-              {t.label}
-            </button>
-          ))}
-        </div>
+        {!isMobile && (
+          <div style={{ marginLeft: "auto", display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {[
+              { id: "dashboard", label: "📈 Dashboard" },
+              { id: "novo", label: editId ? "✏️ Editar" : "➕ Novo" },
+              { id: "lista", label: "📋 Lista" },
+              { id: "assinaturas", label: `🔄 Assinaturas${assinaturasAtivas > 0 ? ` (${assinaturasAtivas})` : ""}` },
+              { id: "clientes", label: `👥 Clientes (${clientes.length})` },
+              { id: "feedbacks", label: `⭐ Feedbacks${metrics.feedbackCount > 0 ? ` (${metrics.feedbackCount})` : ""}` },
+            ].map(t => (
+              <button key={t.id} onClick={() => { setTab(t.id); if (t.id !== "novo") { setForm({ ...EMPTY_FORM }); setEditId(null); } }}
+                style={{ padding: "7px 14px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, background: tab === t.id ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : "#1a1d2e", color: tab === t.id ? "#fff" : "#9ca3af", transition: "all 0.2s" }}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        )}
+        {isMobile && (
+          <div style={{ marginLeft: "auto", fontSize: 10, color: "#6b7280", fontFamily: "'Space Mono',monospace", letterSpacing: 1 }}>
+            GESTÃO · AGÊNCIA
+          </div>
+        )}
       </div>
 
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "28px 20px" }}>
+      {/* Bottom Navigation — mobile only */}
+      {isMobile && (
+        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 500, background: "#0f1117", borderTop: "1px solid #1e2130", display: "flex", alignItems: "stretch", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+          {[
+            { id: "dashboard", icon: "📈", label: "Dashboard" },
+            { id: "novo", icon: editId ? "✏️" : "➕", label: editId ? "Editar" : "Novo" },
+            { id: "lista", icon: "📋", label: "Lista" },
+            { id: "assinaturas", icon: "🔄", label: "Rec." + (assinaturasAtivas > 0 ? ` ${assinaturasAtivas}` : "") },
+            { id: "clientes", icon: "👥", label: "Clientes" },
+            { id: "feedbacks", icon: "⭐", label: "Feed." + (metrics.feedbackCount > 0 ? ` ${metrics.feedbackCount}` : "") },
+          ].map(t => {
+            const active = tab === t.id;
+            return (
+              <button key={t.id} onClick={() => { setTab(t.id); if (t.id !== "novo") { setForm({ ...EMPTY_FORM }); setEditId(null); } }}
+                style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, padding: "10px 2px", border: "none", cursor: "pointer", background: "transparent", color: active ? "#818cf8" : "#4b5563", transition: "color 0.15s", position: "relative" }}>
+                {active && <div style={{ position: "absolute", top: 0, left: "20%", right: "20%", height: 2, background: "linear-gradient(90deg,#6366f1,#8b5cf6)", borderRadius: "0 0 2px 2px" }} />}
+                <span style={{ fontSize: 20, lineHeight: 1 }}>{t.icon}</span>
+                <span style={{ fontSize: 9, fontWeight: active ? 700 : 500, letterSpacing: 0.3, whiteSpace: "nowrap" }}>{t.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: isMobile ? "16px 12px 96px" : "28px 20px" }}>
 
         {/* ── DASHBOARD ── */}
         {tab === "dashboard" && (
@@ -669,7 +704,7 @@ export default function App() {
                   )}
                 </div>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: isMobile ? "flex-start" : "flex-end", gap: 6, width: isMobile ? "100%" : "auto" }}>
                 {/* Barra compacta sempre visível */}
                 <div style={{ display: "flex", gap: 4, background: "#0f1117", border: "1px solid #1e2130", borderRadius: 10, padding: 4 }}>
                   {([{ key: "hoje", label: "Hoje" }, { key: "7dias", label: "7 Dias" }] as const).map(({ key, label }) => {
@@ -782,7 +817,7 @@ export default function App() {
             </div>
 
             {/* Cards de Receita em destaque */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3,1fr)", gap: 12, marginBottom: 12 }}>
               <div style={{ background: "linear-gradient(135deg,#064e3b,#065f46)", border: "1px solid #10b98140", borderRadius: 14, padding: "20px 24px", position: "relative", overflow: "hidden" }}>
                 <div style={{ position: "absolute", top: -10, right: -10, fontSize: 72, opacity: 0.08 }}>💰</div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#6ee7b7", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>Receita Total Confirmada</div>
@@ -873,7 +908,7 @@ export default function App() {
               </div>
             )}
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14, marginBottom: 14 }}>
               <div style={{ background: "#0f1117", border: "1px solid #1e2130", borderRadius: 14, padding: "20px 24px" }}>
                 <div style={{ fontWeight: 700, marginBottom: 16, color: "#fff", fontSize: 15 }}>📡 Por Canal</div>
                 {CANAIS.map(c => { const count = metrics.porCanal[c]; const pct = metrics.total > 0 ? (count / metrics.total) * 100 : 0; return (
@@ -944,7 +979,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
                   <div>
                     <Label>Nome do Cliente *</Label>
                     <AutocompleteCliente
@@ -1038,7 +1073,7 @@ export default function App() {
                 </div>
 
                 {/* Valor + Tipo */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14, marginBottom: 14 }}>
                   <div>
                     <Label>Valor Total (R$)</Label>
                     <Field type="number" min="0" value={form.valorContrato} onChange={e => setForm(p => ({ ...p, valorContrato: e.target.value }))} placeholder="Ex: 1500" />
@@ -1123,7 +1158,7 @@ export default function App() {
               {/* Prazo de Entrega */}
               <div style={{ background: "#3b82f608", border: "1px solid #3b82f620", borderRadius: 12, padding: "16px 18px", marginBottom: 14 }}>
                 <div style={{ fontWeight: 700, color: "#3b82f6", fontSize: 14, marginBottom: 14 }}>📅 Prazo de Entrega</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>
                   <div>
                     <Label>Data limite</Label>
                     <Field type="date" value={form.prazoEntrega} onChange={e => setForm(p => ({ ...p, prazoEntrega: e.target.value }))} />
@@ -1143,7 +1178,7 @@ export default function App() {
               {/* Tempos */}
               <div style={{ background: "#f59e0b08", border: "1px solid #f59e0b20", borderRadius: 12, padding: "16px 18px", marginBottom: 14 }}>
                 <div style={{ fontWeight: 700, color: "#f59e0b", fontSize: 14, marginBottom: 14 }}>⏱️ Tempos de Atendimento</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 18 }}>
                   <div>
                     <div style={{ fontSize: 12, fontWeight: 700, color: "#f59e0b", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>⚡ Tempo de Resposta</div>
                     <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 10 }}>Quanto tempo levou para responder o cliente após o primeiro contato</div>
@@ -1242,8 +1277,8 @@ export default function App() {
                   const dias = diasRestantes(a.prazoEntrega);
                   const prazoColor = dias === null ? null : dias < 0 ? "#ef4444" : dias <= 3 ? "#f59e0b" : "#10b981";
                   return (
-                    <div key={a.id} style={{ background: "#0f1117", border: `1px solid ${dias !== null && dias < 0 ? "#ef444430" : "#1e2130"}`, borderRadius: 13, padding: "16px 20px", display: "flex", alignItems: "flex-start", gap: 14 }}>
-                      <div style={{ fontSize: 26, lineHeight: 1.2 }}>{CANAL_ICONS[a.canal]}</div>
+                    <div key={a.id} style={{ background: "#0f1117", border: `1px solid ${dias !== null && dias < 0 ? "#ef444430" : "#1e2130"}`, borderRadius: 13, padding: isMobile ? "14px" : "16px 20px", display: "flex", alignItems: "flex-start", gap: isMobile ? 10 : 14 }}>
+                      <div style={{ fontSize: 22, lineHeight: 1.2 }}>{CANAL_ICONS[a.canal]}</div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                           <span style={{ fontWeight: 700, fontSize: 15, cursor: "pointer", color: "#818cf8" }} onClick={() => abrirHistorico(a)}>
@@ -1264,13 +1299,16 @@ export default function App() {
                         </div>
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
-                        <button onClick={() => abrirFeedback(a)}
-                          style={{ padding: "6px 12px", background: a.feedbackNota ? "#10b98122" : "#1a1d2e", border: `1px solid ${a.feedbackNota ? "#10b981" : "#2d3148"}`, borderRadius: 7, color: a.feedbackNota ? "#10b981" : "#9ca3af", cursor: "pointer", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap" }}>
-                          {a.feedbackNota ? "⭐ Ver feedback" : "⭐ Feedback"}
-                        </button>
+                        {!isMobile && (
+                          <button onClick={() => abrirFeedback(a)}
+                            style={{ padding: "6px 12px", background: a.feedbackNota ? "#10b98122" : "#1a1d2e", border: `1px solid ${a.feedbackNota ? "#10b981" : "#2d3148"}`, borderRadius: 7, color: a.feedbackNota ? "#10b981" : "#9ca3af", cursor: "pointer", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap" }}>
+                            {a.feedbackNota ? "⭐ Ver" : "⭐ Fb"}
+                          </button>
+                        )}
                         <div style={{ display: "flex", gap: 6 }}>
-                          <button onClick={() => handleEdit(a)} style={{ flex: 1, padding: "6px 10px", background: "#1a1d2e", border: "1px solid #2d3148", borderRadius: 7, color: "#818cf8", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>✏️</button>
-                          <button onClick={() => handleDelete(a.id)} style={{ padding: "6px 10px", background: "#1a1d2e", border: "1px solid #2d3148", borderRadius: 7, color: "#ef4444", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>🗑️</button>
+                          <button onClick={() => abrirFeedback(a)} style={{ padding: isMobile ? "8px 10px" : "6px 10px", background: a.feedbackNota ? "#10b98122" : "#1a1d2e", border: `1px solid ${a.feedbackNota ? "#10b981" : "#2d3148"}`, borderRadius: 7, color: a.feedbackNota ? "#10b981" : "#9ca3af", cursor: "pointer", fontSize: isMobile ? 14 : 12, display: isMobile ? "flex" : "none" }}>⭐</button>
+                          <button onClick={() => handleEdit(a)} style={{ padding: isMobile ? "8px 10px" : "6px 10px", background: "#1a1d2e", border: "1px solid #2d3148", borderRadius: 7, color: "#818cf8", cursor: "pointer", fontSize: isMobile ? 14 : 12, fontWeight: 600 }}>✏️</button>
+                          <button onClick={() => handleDelete(a.id)} style={{ padding: isMobile ? "8px 10px" : "6px 10px", background: "#1a1d2e", border: "1px solid #2d3148", borderRadius: 7, color: "#ef4444", cursor: "pointer", fontSize: isMobile ? 14 : 12, fontWeight: 600 }}>🗑️</button>
                         </div>
                       </div>
                     </div>
@@ -1294,7 +1332,7 @@ export default function App() {
                 <div style={{ color: "#4b5563" }}>Nenhum cliente ainda. Registre atendimentos para ver aqui.</div>
               </div>
             ) : (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill,minmax(300px,1fr))", gap: 12 }}>
                 {(clientes as any[]).map(c => {
                   const ids = new Set(c.atendimentos.map((a: any) => a.id));
                   const recAvulsa = c.atendimentos.filter((a: any) => a.valorContrato && !a.recorrenciaAutomatica).reduce((s: number, a: any) => s + Number(a.valorContrato), 0);
@@ -1369,6 +1407,7 @@ export default function App() {
 
           const AssinaturaRow = ({ a }: { a: any }) => {
             const cancelada = a.assinaturaCancelada;
+            // isMobile inherited from App closure
             const pago = pagamentosRec.find((p: any) => p.atendimentoId === a.id && p.mes === mes);
             const ultimos6 = [0,1,2,3,4,5].map(offset => {
               const d = new Date(); d.setMonth(d.getMonth() - offset);
@@ -1377,9 +1416,9 @@ export default function App() {
               return { m, label: d.toLocaleDateString("pt-BR",{month:"short",year:"2-digit"}), pago: !!p, data: p?.dataRecebido };
             });
             return (
-              <div style={{ background: "#0f1117", border: `1px solid ${cancelada ? "#ef444420" : "#1e2130"}`, borderRadius: 12, padding: "18px 20px", marginBottom: 10 }}>
+              <div style={{ background: "#0f1117", border: `1px solid ${cancelada ? "#ef444420" : "#1e2130"}`, borderRadius: 12, padding: isMobile ? "14px" : "18px 20px", marginBottom: 10 }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 14, flexWrap: "wrap" }}>
-                  <div style={{ flex: 1, minWidth: 200 }}>
+                  <div style={{ flex: 1, minWidth: isMobile ? 0 : 200 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                       <span style={{ fontWeight: 700, fontSize: 15, color: cancelada ? "#6b7280" : "#fff" }}>
                         {a.empresa || a.nomeCliente}
@@ -1401,17 +1440,19 @@ export default function App() {
                   </div>
 
                   {/* Histórico 6 meses */}
-                  <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
-                    {ultimos6.reverse().map(({ m, label, pago: pg, data }) => (
-                      <div key={m} title={pg && data ? `Recebido em ${formatDateTime(data)}` : `Pendente — ${label}`}
-                        style={{ textAlign: "center", opacity: cancelada ? 0.35 : 1 }}>
-                        <div style={{ width: 32, height: 32, borderRadius: 8, background: pg ? "#10b98122" : "#1a1d2e", border: `1px solid ${pg ? "#10b981" : "#2d3148"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, marginBottom: 4 }}>
-                          {pg ? "✅" : "○"}
+                  {!isMobile && (
+                    <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
+                      {ultimos6.reverse().map(({ m, label, pago: pg, data }) => (
+                        <div key={m} title={pg && data ? `Recebido em ${formatDateTime(data)}` : `Pendente — ${label}`}
+                          style={{ textAlign: "center", opacity: cancelada ? 0.35 : 1 }}>
+                          <div style={{ width: 32, height: 32, borderRadius: 8, background: pg ? "#10b98122" : "#1a1d2e", border: `1px solid ${pg ? "#10b981" : "#2d3148"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, marginBottom: 4 }}>
+                            {pg ? "✅" : "○"}
+                          </div>
+                          <div style={{ fontSize: 9, color: "#4b5563", textTransform: "uppercase", whiteSpace: "nowrap" }}>{label}</div>
                         </div>
-                        <div style={{ fontSize: 9, color: "#4b5563", textTransform: "uppercase", whiteSpace: "nowrap" }}>{label}</div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Ações */}
                   <div style={{ display: "flex", gap: 6, flexShrink: 0, alignSelf: "center" }}>
@@ -1455,7 +1496,7 @@ export default function App() {
               </div>
 
               {/* Resumo do mês */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12, marginBottom: 24 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3,1fr)", gap: 12, marginBottom: 24 }}>
                 <div style={{ background: "linear-gradient(135deg,#064e3b,#065f46)", border: "1px solid #10b98140", borderRadius: 14, padding: "18px 20px" }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: "#6ee7b7", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>Recebido este mês</div>
                   <div style={{ fontSize: 26, fontWeight: 700, color: "#10b981", fontFamily: "'Space Mono',monospace" }}>{recebidoMes > 0 ? formatBRL(recebidoMes) : "—"}</div>
@@ -1551,6 +1592,10 @@ export default function App() {
         ::-webkit-scrollbar-track { background: #0b0d14; }
         ::-webkit-scrollbar-thumb { background: #2d3148; border-radius: 99px; }
         input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5); }
+        @media (max-width: 767px) {
+          input, textarea, select { font-size: 16px !important; }
+          button { -webkit-tap-highlight-color: transparent; }
+        }
       `}</style>
     </div>
   );
