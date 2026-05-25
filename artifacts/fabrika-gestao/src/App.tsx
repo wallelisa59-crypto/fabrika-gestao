@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { storage } from "./lib/storage";
 import { useIsMobile } from "./hooks/use-mobile";
+import {
+  getAtendimentos, upsertAtendimento, deleteAtendimento,
+  getPagamentosRec, insertPagamentoRec, deletePagamentoRec,
+} from "./lib/db";
 
 const CANAIS = ["WhatsApp", "Instagram", "E-mail", "Telefone", "Presencial", "Outro"];
 const STATUS = ["Em negociação", "Em desenvolvimento", "Perdido", "Concluído"];
@@ -346,27 +349,28 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const r = await storage.get("atendimentos_v4");
-        if (r && r.value) setAtendimentos(JSON.parse(r.value));
-        const rp = await storage.get("pagamentos_rec_v1");
-        if (rp && rp.value) setPagamentosRec(JSON.parse(rp.value));
-      } catch (_) {}
+        const [ats, pags] = await Promise.all([getAtendimentos(), getPagamentosRec()]);
+        setAtendimentos(ats);
+        setPagamentosRec(pags);
+      } catch (e) {
+        console.error("Erro ao carregar dados:", e);
+      }
       setLoading(false);
     })();
   }, []);
 
-  const saveStorage = useCallback(async (data: any[]) => {
-    try { await storage.set("atendimentos_v4", JSON.stringify(data)); } catch (_) {}
-  }, []);
-
-  const savePagRec = useCallback(async (data: any[]) => {
-    try { await storage.set("pagamentos_rec_v1", JSON.stringify(data)); } catch (_) {}
-  }, []);
 
   const mesAtual = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   };
+
+  const updateAtendimento = useCallback(async (id: number, changes: any) => {
+    const updated = atendimentos.map(a => a.id === id ? { ...a, ...changes } : a);
+    setAtendimentos(updated);
+    const changed = updated.find(a => a.id === id);
+    if (changed) await upsertAtendimento(changed);
+  }, [atendimentos]);
 
   const handleMarcarRecebido = async (atendimentoId: number) => {
     const mes = mesAtual();
@@ -374,37 +378,30 @@ export default function App() {
     if (jaExiste) { showToast("Pagamento já marcado para este mês!", "err"); return; }
     const at = atendimentos.find(a => a.id === atendimentoId);
     const novo = { id: Date.now(), atendimentoId, mes, valor: at?.valorContrato ? Number(at.valorContrato) : 0, dataRecebido: new Date().toISOString() };
-    const updated = [...pagamentosRec, novo];
-    setPagamentosRec(updated);
-    await savePagRec(updated);
+    await insertPagamentoRec(novo);
+    setPagamentosRec(prev => [...prev, novo]);
     showToast("✅ Pagamento do mês marcado como recebido!");
   };
 
   const handleDesfazerRecebido = async (atendimentoId: number) => {
     const mes = mesAtual();
-    const updated = pagamentosRec.filter(p => !(p.atendimentoId === atendimentoId && p.mes === mes));
-    setPagamentosRec(updated);
-    await savePagRec(updated);
+    await deletePagamentoRec(atendimentoId, mes);
+    setPagamentosRec(prev => prev.filter(p => !(p.atendimentoId === atendimentoId && p.mes === mes)));
     showToast("Pagamento do mês desmarcado.");
   };
 
   const handleCancelarAssinatura = async (id: number) => {
-    const updated = atendimentos.map(a => a.id === id ? { ...a, assinaturaCancelada: true } : a);
-    setAtendimentos(updated);
-    await saveStorage(updated);
+    await updateAtendimento(id, { assinaturaCancelada: true });
     showToast("Assinatura cancelada.", "err");
   };
 
   const handleReativarAssinatura = async (id: number) => {
-    const updated = atendimentos.map(a => a.id === id ? { ...a, assinaturaCancelada: false } : a);
-    setAtendimentos(updated);
-    await saveStorage(updated);
+    await updateAtendimento(id, { assinaturaCancelada: false });
     showToast("Assinatura reativada!");
   };
 
   const handleFeedbackSave = async (id: number, nota: string, comentario: string) => {
-    const updated = atendimentos.map(a => a.id === id ? { ...a, feedbackNota: nota, feedbackComentario: comentario, feedbackEm: new Date().toISOString() } : a);
-    setAtendimentos(updated); await saveStorage(updated);
+    await updateAtendimento(id, { feedbackNota: nota, feedbackComentario: comentario, feedbackEm: new Date().toISOString() });
   };
 
   if (loading) return (
@@ -445,15 +442,17 @@ export default function App() {
       recorrenciaAutomatica: form.recorrenciaAutomatica,
       pagamentoAntecipado: form.pagamentoAntecipado,
     };
-    let updated;
     if (editId) {
-      updated = atendimentos.map(a => a.id === editId ? { ...a, ...parsed } : a);
+      const atualizado = { ...atendimentos.find(a => a.id === editId), ...parsed };
+      await upsertAtendimento(atualizado);
+      setAtendimentos(prev => prev.map(a => a.id === editId ? atualizado : a));
       showToast("Atendimento atualizado!");
     } else {
-      updated = [{ ...parsed, id: Date.now(), criadoEm: new Date().toISOString() }, ...atendimentos];
+      const novo = { ...parsed, id: Date.now(), criadoEm: new Date().toISOString() };
+      await upsertAtendimento(novo);
+      setAtendimentos(prev => [novo, ...prev]);
       showToast("Atendimento registrado!");
     }
-    setAtendimentos(updated); await saveStorage(updated);
     setForm({ ...EMPTY_FORM }); setEditId(null); setSalvando(false); setTab("lista");
   };
 
@@ -483,8 +482,9 @@ export default function App() {
     setEditId(a.id); setTab("novo");
   };
   const handleDelete = async (id: number) => {
-    const updated = atendimentos.filter(a => a.id !== id);
-    setAtendimentos(updated); await saveStorage(updated); showToast("Removido.", "err");
+    await deleteAtendimento(id);
+    setAtendimentos(prev => prev.filter(a => a.id !== id));
+    showToast("Removido.", "err");
   };
 
   const clientes = getClientes(atendimentos);
