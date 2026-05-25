@@ -1,5 +1,5 @@
 [build]
-  command = "npm install -g pnpm && pnpm install --no-frozen-lockfile && pnpm --filter @workspace/fabrika-gestao build"
+  command = "pnpm install --no-frozen-lockfile && pnpm --filter @workspace/fabrika-gestao build"
   publish = "artifacts/fabrika-gestao/dist/public"
 
 [build.environment]
