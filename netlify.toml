@@ -1,0 +1,11 @@
+[build]
+  command = "npm install -g pnpm && pnpm install --no-frozen-lockfile && pnpm --filter @workspace/fabrika-gestao build"
+  publish = "artifacts/fabrika-gestao/dist/public"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

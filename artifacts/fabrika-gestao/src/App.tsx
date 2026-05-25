@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { storage } from "./lib/storage";
 
 const CANAIS = ["WhatsApp", "Instagram", "E-mail", "Telefone", "Presencial", "Outro"];
 const STATUS = ["Em negociação", "Em desenvolvimento", "Perdido", "Concluído"];
@@ -341,9 +342,9 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        const r = await (window as any).storage.get("atendimentos_v4");
+        const r = await storage.get("atendimentos_v4");
         if (r && r.value) setAtendimentos(JSON.parse(r.value));
-        const rp = await (window as any).storage.get("pagamentos_rec_v1");
+        const rp = await storage.get("pagamentos_rec_v1");
         if (rp && rp.value) setPagamentosRec(JSON.parse(rp.value));
       } catch (_) {}
       setLoading(false);
@@ -351,11 +352,11 @@ export default function App() {
   }, []);
 
   const saveStorage = useCallback(async (data: any[]) => {
-    try { await (window as any).storage.set("atendimentos_v4", JSON.stringify(data)); } catch (_) {}
+    try { await storage.set("atendimentos_v4", JSON.stringify(data)); } catch (_) {}
   }, []);
 
   const savePagRec = useCallback(async (data: any[]) => {
-    try { await (window as any).storage.set("pagamentos_rec_v1", JSON.stringify(data)); } catch (_) {}
+    try { await storage.set("pagamentos_rec_v1", JSON.stringify(data)); } catch (_) {}
   }, []);
 
   const mesAtual = () => {
