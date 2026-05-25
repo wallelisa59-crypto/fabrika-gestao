@@ -2,48 +2,41 @@ import { supabase } from "./supabase";
 
 export const storage = {
   async get(key: string): Promise<{ value: string } | null> {
-    // Try Supabase first
-    try {
-      const { data, error } = await supabase
-        .from("app_storage")
-        .select("value")
-        .eq("key", key)
-        .maybeSingle();
+    const { data, error } = await supabase
+      .from("app_storage")
+      .select("value")
+      .eq("key", key)
+      .maybeSingle();
 
-      if (!error && data) {
-        // Keep localStorage in sync
-        localStorage.setItem(key, data.value);
-        return { value: data.value };
-      }
-      if (error) {
-        console.warn("Supabase read failed, using localStorage:", error.message);
-      }
-    } catch (e) {
-      console.warn("Supabase unavailable, using localStorage:", e);
+    if (error) {
+      console.error("Supabase read error:", error);
+      // fallback: localStorage
+      const local = localStorage.getItem(key);
+      return local ? { value: local } : null;
     }
 
-    // Fallback to localStorage
+    if (data) {
+      localStorage.setItem(key, data.value); // keep local in sync
+      return { value: data.value };
+    }
+
+    // no row yet — check localStorage (migration from old data)
     const local = localStorage.getItem(key);
     return local ? { value: local } : null;
   },
 
   async set(key: string, value: string): Promise<void> {
-    // Always write to localStorage immediately (instant persistence)
-    localStorage.setItem(key, value);
+    localStorage.setItem(key, value); // instant local write
 
-    // Also sync to Supabase (best effort)
-    try {
-      const { error } = await supabase
-        .from("app_storage")
-        .upsert(
-          { key, value, updated_at: new Date().toISOString() },
-          { onConflict: "key" }
-        );
-      if (error) {
-        console.warn("Supabase write failed (data saved locally):", error.message);
-      }
-    } catch (e) {
-      console.warn("Supabase unavailable (data saved locally):", e);
+    const { error } = await supabase
+      .from("app_storage")
+      .upsert(
+        { key, value, updated_at: new Date().toISOString() },
+        { onConflict: "key" }
+      );
+
+    if (error) {
+      console.error("Supabase write error:", error);
     }
   },
 };
