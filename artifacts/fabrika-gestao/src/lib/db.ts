@@ -35,6 +35,21 @@ function toRow(a: any) {
   };
 }
 
+const VALID_STATUS = ["Em negociação", "Em desenvolvimento", "Perdido", "Concluído"];
+const STATUS_LEGACY: Record<string, string> = {
+  "COM COMPLETA": "Concluído",
+  "Concluido": "Concluído",
+  "concluido": "Concluído",
+  "Completo": "Concluído",
+  "completo": "Concluído",
+};
+
+function normalizeStatus(s: string | null | undefined): string {
+  if (!s) return "Em negociação";
+  if (VALID_STATUS.includes(s)) return s;
+  return STATUS_LEGACY[s] ?? "Em negociação";
+}
+
 function fromRow(r: any) {
   return {
     id: r.id,
@@ -44,7 +59,7 @@ function fromRow(r: any) {
     canal: r.canal || "",
     responsavel: r.responsavel || "",
     descricao: r.descricao || "",
-    status: r.status || "",
+    status: normalizeStatus(r.status),
     tempoResposta: r.tempo_resposta,
     tempoConclusao: r.tempo_conclusao,
     observacao: r.observacao || "",
