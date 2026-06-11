@@ -448,7 +448,7 @@ export default function App() {
       setAtendimentos(prev => prev.map(a => a.id === editId ? atualizado : a));
       showToast("Atendimento atualizado!");
     } else {
-      const novo = { ...parsed, id: Date.now(), criadoEm: new Date().toISOString() };
+      const novo = const novo = { ...parsed };
       await upsertAtendimento(novo);
       setAtendimentos(prev => [novo, ...prev]);
       showToast("Atendimento registrado!");
