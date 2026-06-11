@@ -114,7 +114,7 @@ function calcMetrics(atendimentos: any[]) {
   const avgFeedback = comFeedback.length ? (comFeedback.reduce((s: number, a: any) => s + notaMap[a.feedbackNota], 0) / comFeedback.length).toFixed(1) : null;
   const recorrentes = atendimentos.filter(a => a.recorrenciaAutomatica && !a.assinaturaCancelada);
   const receitaRecorrente = recorrentes.reduce((s: number, a: any) => s + Number(a.valorContrato || 0), 0);
-  const receitaAvulsa = atendimentos.filter(a => a.valorContrato && && !a.recorrenciaAutomatica && a.status === "Concluído")
+  const receitaAvulsa = atendimentos.filter(a => a.valorContrato && !a.recorrenciaAutomatica && a.status === "Concluído")
 .reduce((s: number, a: any) => s + Number(a.valorContrato), 0);
   const vencendoHoje = atendimentos.filter(a => { const d = diasRestantes(a.prazoEntrega); return d !== null && d >= 0 && d <= 3 && a.status !== "Concluído"; });
   const atrasados = atendimentos.filter(a => { const d = diasRestantes(a.prazoEntrega); return d !== null && d < 0 && a.status !== "Concluído"; });
