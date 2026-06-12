@@ -565,7 +565,9 @@ export default function App() {
 
   const exportarCSV = (dados: any[], nomeArquivo: string) => {
     const escape = (v: any) => {
-      const s = v === null || v === undefined ? "" : String(v);
+    const s = v === null || v === undefined
+  ? ""
+  : String(v).replace(/\r?\n/g, " ");
       return s.includes(",") || s.includes('"') || s.includes("\n") ? `"${s.replace(/"/g, '""')}"` : s;
     };
     const headers = ["Cliente","Empresa","Canal","Status","Responsável","Data","Valor (R$)","Tipo Contrato","Modelo Cobrança","Forma Pagamento","CPF/CNPJ","Recorrente","Observação"];
