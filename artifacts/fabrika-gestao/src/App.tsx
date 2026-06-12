@@ -583,7 +583,7 @@ export default function App() {
       a.tipoPessoa === "juridica" ? (a.cnpj || "") : (a.cpf || ""),
       a.recorrenciaAutomatica ? "Sim" : "Não",
       a.observacao || "",
-   ].map(escape).join(";");
+   ].map(escape).join(";"));
     const csv = [headers.join(";"), ...linhas].join("\n");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
