@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useIsMobile } from "./hooks/use-mobile";
+import CustoCaldo from "./components/CustoCaldo";
 import {
   getAtendimentos, upsertAtendimento, deleteAtendimento,
   getPagamentosRec, insertPagamentoRec, deletePagamentoRec,
@@ -646,6 +647,7 @@ export default function App() {
               { id: "assinaturas", label: `🔄 Assinaturas${assinaturasAtivas > 0 ? ` (${assinaturasAtivas})` : ""}` },
               { id: "clientes", label: `👥 Clientes (${clientes.length})` },
               { id: "feedbacks", label: `⭐ Feedbacks${metrics.feedbackCount > 0 ? ` (${metrics.feedbackCount})` : ""}` },
+              { id: "custos", label: "🥤 Custos Kaná" },
             ].map(t => (
               <button key={t.id} onClick={() => { setTab(t.id); if (t.id !== "novo") { setForm({ ...EMPTY_FORM }); setEditId(null); } }}
                 style={{ padding: "7px 14px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, background: tab === t.id ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : "#1a1d2e", color: tab === t.id ? "#fff" : "#9ca3af", transition: "all 0.2s" }}>
@@ -671,6 +673,7 @@ export default function App() {
             { id: "assinaturas", icon: "🔄", label: "Rec." + (assinaturasAtivas > 0 ? ` ${assinaturasAtivas}` : "") },
             { id: "clientes", icon: "👥", label: "Clientes" },
             { id: "feedbacks", icon: "⭐", label: "Feed." + (metrics.feedbackCount > 0 ? ` ${metrics.feedbackCount}` : "") },
+            { id: "custos", icon: "🥤", label: "Custos" },
           ].map(t => {
             const active = tab === t.id;
             return (
@@ -1539,6 +1542,9 @@ export default function App() {
             </div>
           );
         })()}
+
+        {/* ── CUSTOS (caldo de cana) ── */}
+        {tab === "custos" && <CustoCaldo />}
 
         {/* ── FEEDBACKS ── */}
         {tab === "feedbacks" && (
